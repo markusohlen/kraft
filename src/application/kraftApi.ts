@@ -1,0 +1,93 @@
+import type { CommitGraph } from '../domain/commitGraph'
+import type { Branch, FileChange, Stash, WorkingTreeStatus } from '../domain/entities'
+import type { GitFlowBranch, GitFlowBranchType, GitFlowConfig } from '../domain/gitFlow'
+import type { AutoStashResult } from './autoStash'
+import type { FinishGitFlowOptions, FinishGitFlowResult } from './gitFlowOperations'
+
+export interface RepositoryView {
+  path: string
+  name: string
+  currentBranch: string | null
+  graph: CommitGraph
+  branches: Branch[]
+  remoteBranches: string[]
+  tags: string[]
+  stashes: Stash[]
+  status: WorkingTreeStatus
+  gitFlow: { config: GitFlowConfig; branches: GitFlowBranch[] } | null
+}
+
+export interface CommitDetails {
+  sha: string
+  message: string
+  files: FileChange[]
+}
+
+/** The operations the user interface can request. Every call acts on the open repository. */
+export interface KraftApi {
+  recentRepositories(): Promise<string[]>
+  chooseRepositoryFolder(): Promise<string | null>
+  openRepository(path: string): Promise<RepositoryView>
+  refresh(): Promise<RepositoryView>
+
+  commitDetails(sha: string): Promise<CommitDetails>
+  commitFileDiff(sha: string, path: string): Promise<string>
+  workingFileDiff(change: FileChange, staged: boolean): Promise<string>
+
+  stage(paths: string[]): Promise<void>
+  unstage(paths: string[]): Promise<void>
+  discard(changes: FileChange[]): Promise<void>
+  commit(message: string): Promise<void>
+
+  checkoutBranch(branch: string): Promise<AutoStashResult>
+  checkoutRemoteBranch(remoteBranch: string): Promise<AutoStashResult>
+  createBranch(name: string, startPoint: string): Promise<AutoStashResult>
+  deleteBranch(branch: string, force: boolean): Promise<void>
+  mergeIntoCurrent(branch: string): Promise<AutoStashResult>
+  rebaseCurrentOnto(onto: string): Promise<AutoStashResult>
+
+  stash(message: string): Promise<boolean>
+  stashPop(index: number): Promise<void>
+  stashApply(index: number): Promise<void>
+  stashDrop(index: number): Promise<void>
+
+  fetch(): Promise<void>
+  pull(): Promise<AutoStashResult>
+  push(): Promise<void>
+
+  initGitFlow(config: GitFlowConfig): Promise<void>
+  startGitFlowBranch(type: GitFlowBranchType, name: string): Promise<AutoStashResult>
+  finishGitFlowBranch(branchName: string, options: FinishGitFlowOptions): Promise<FinishGitFlowResult>
+}
+
+export type KraftMethod = keyof KraftApi
+
+export const kraftMethods: readonly KraftMethod[] = [
+  'recentRepositories',
+  'chooseRepositoryFolder',
+  'openRepository',
+  'refresh',
+  'commitDetails',
+  'commitFileDiff',
+  'workingFileDiff',
+  'stage',
+  'unstage',
+  'discard',
+  'commit',
+  'checkoutBranch',
+  'checkoutRemoteBranch',
+  'createBranch',
+  'deleteBranch',
+  'mergeIntoCurrent',
+  'rebaseCurrentOnto',
+  'stash',
+  'stashPop',
+  'stashApply',
+  'stashDrop',
+  'fetch',
+  'pull',
+  'push',
+  'initGitFlow',
+  'startGitFlowBranch',
+  'finishGitFlowBranch'
+]
