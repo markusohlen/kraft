@@ -6,11 +6,15 @@ import {
   askStartGitFlowBranch,
   checkoutLocal,
   checkoutRemote,
+  popStash,
   showLocalBranchMenu,
-  showRemoteBranchMenu
+  showRemoteBranchMenu,
+  showStashMenu
 } from '../actions'
-import { kraft } from '../kraftClient'
+import { buildBranchTree, countBranches, type BranchFolder, type BranchLeaf } from '../branchTree'
 import type { RepositoryController } from '../useRepositoryController'
+import { JiraSidebarSection } from './JiraSidebarSection'
+import { SidebarSection } from './SidebarSection'
 
 export function Sidebar({ controller }: { controller: RepositoryController }) {
   const view = controller.view!
@@ -18,6 +22,7 @@ export function Sidebar({ controller }: { controller: RepositoryController }) {
   const matches = (name: string) => name.toLowerCase().includes(filter.trim().toLowerCase())
 
   const localBranches = view.branches.filter((branch) => matches(branch.name))
+  const localByName = new Map(localBranches.map((branch) => [branch.name, branch]))
   const remoteGroups = groupByRemote(view.remoteBranches.filter(matches))
   const tags = view.tags.filter(matches)
 
@@ -25,75 +30,81 @@ export function Sidebar({ controller }: { controller: RepositoryController }) {
     <nav className="sidebar">
       <input className="sidebar-filter" placeholder="Filter branches and tags" value={filter} onChange={(event) => setFilter(event.target.value)} />
       <div className="sidebar-scroll">
-        <Section title="Local" count={view.branches.length}>
-          {localBranches.map((branch) => (
-            <div
-              key={branch.name}
-              className={`sidebar-item ${branch.isCurrent ? 'current' : ''}`}
-              title="Double-click to check out"
-              onDoubleClick={() => checkoutLocal(controller, branch.name)}
-              onContextMenu={(event) => showLocalBranchMenu(controller, event, branch.name)}
-            >
-              <span className="item-icon">{branch.isCurrent ? '✓' : '⑂'}</span>
-              <span className="item-name">{branch.name}</span>
-              <TrackingBadge ahead={branch.ahead} behind={branch.behind} />
-            </div>
-          ))}
-        </Section>
+        <JiraSidebarSection controller={controller} />
 
-        <Section title="Remote" count={view.remoteBranches.length}>
-          {[...remoteGroups].map(([remote, branches]) => (
-            <Section key={remote} title={remote} nested>
-              {branches.map((remoteBranch) => (
+        <SidebarSection title="Local" count={view.branches.length}>
+          <BranchFolderView
+            folder={buildBranchTree(localBranches.map((branch) => branch.name))}
+            depth={1}
+            renderBranch={(leaf) => {
+              const branch = localByName.get(leaf.fullName)!
+              return (
                 <div
-                  key={remoteBranch}
-                  className="sidebar-item"
-                  title="Double-click to check out"
-                  onDoubleClick={() => checkoutRemote(controller, remoteBranch)}
-                  onContextMenu={(event) => showRemoteBranchMenu(controller, event, remoteBranch)}
+                  key={branch.name}
+                  className={`sidebar-item ${branch.isCurrent ? 'current' : ''}`}
+                  title={`${branch.name}\nDouble-click to check out`}
+                  onDoubleClick={() => checkoutLocal(controller, branch.name)}
+                  onContextMenu={(event) => showLocalBranchMenu(controller, event, branch.name)}
                 >
-                  <span className="item-icon">☁</span>
-                  <span className="item-name">{remoteBranch.slice(remote.length + 1)}</span>
+                  <span className="item-icon">{branch.isCurrent ? '✓' : '⑂'}</span>
+                  <span className="item-name">{leaf.label}</span>
+                  <TrackingBadge ahead={branch.ahead} behind={branch.behind} />
                 </div>
-              ))}
-            </Section>
-          ))}
-        </Section>
+              )
+            }}
+          />
+        </SidebarSection>
 
-        <Section title="Stashes" count={view.stashes.length}>
+        <SidebarSection title="Remote" count={view.remoteBranches.length}>
+          {[...remoteGroups].map(([remote, branches]) => (
+            <SidebarSection key={remote} title={remote} count={branches.length} depth={1}>
+              <BranchFolderView
+                folder={buildBranchTree(branches, remote)}
+                depth={2}
+                renderBranch={(leaf) => (
+                  <div
+                    key={leaf.fullName}
+                    className="sidebar-item"
+                    title={`${leaf.fullName}\nDouble-click to check out`}
+                    onDoubleClick={() => checkoutRemote(controller, leaf.fullName)}
+                    onContextMenu={(event) => showRemoteBranchMenu(controller, event, leaf.fullName)}
+                  >
+                    <span className="item-icon">☁</span>
+                    <span className="item-name">{leaf.label}</span>
+                  </div>
+                )}
+              />
+            </SidebarSection>
+          ))}
+        </SidebarSection>
+
+        <SidebarSection title="Stashes" count={view.stashes.length}>
           {view.stashes.map((stash) => (
             <div
               key={stash.sha}
               className="sidebar-item"
               title="Double-click to apply and drop (pop)"
-              onDoubleClick={() => void controller.run('Popping stash', () => kraft.stashPop(stash.index), 'Stash popped')}
-              onContextMenu={(event) => {
-                event.preventDefault()
-                controller.showMenu({
-                  x: event.clientX,
-                  y: event.clientY,
-                  items: [
-                    { label: 'Pop stash', onSelect: () => void controller.run('Popping stash', () => kraft.stashPop(stash.index), 'Stash popped') },
-                    { label: 'Apply stash', onSelect: () => void controller.run('Applying stash', () => kraft.stashApply(stash.index), 'Stash applied') },
-                    { label: 'Delete stash', danger: true, onSelect: () => void controller.run('Deleting stash', () => kraft.stashDrop(stash.index)) }
-                  ]
-                })
+              onClick={() => {
+                controller.setDiff(null)
+                controller.setSelection({ kind: 'stash', sha: stash.sha })
               }}
+              onDoubleClick={() => popStash(controller, stash)}
+              onContextMenu={(event) => showStashMenu(controller, event, stash)}
             >
               <span className="item-icon">⧉</span>
               <span className="item-name">{stash.message}</span>
             </div>
           ))}
-        </Section>
+        </SidebarSection>
 
-        <Section title="Tags" count={view.tags.length} initiallyOpen={false}>
+        <SidebarSection title="Tags" count={view.tags.length} initiallyOpen={false}>
           {tags.map((tag) => (
             <div key={tag} className="sidebar-item">
               <span className="item-icon">⌂</span>
               <span className="item-name">{tag}</span>
             </div>
           ))}
-        </Section>
+        </SidebarSection>
 
         <GitFlowSection controller={controller} />
       </div>
@@ -105,18 +116,18 @@ function GitFlowSection({ controller }: { controller: RepositoryController }) {
   const gitFlow = controller.view!.gitFlow
   if (!gitFlow) {
     return (
-      <Section title="Gitflow">
+      <SidebarSection title="Gitflow">
         <div className="sidebar-empty">
           <button className="secondary" onClick={() => askInitGitFlow(controller)}>
             Initialize Gitflow
           </button>
         </div>
-      </Section>
+      </SidebarSection>
     )
   }
   const typeLabels: Record<GitFlowBranchType, string> = { feature: 'Feature', release: 'Release', hotfix: 'Hotfix' }
   return (
-    <Section title="Gitflow">
+    <SidebarSection title="Gitflow">
       <div className="gitflow-start">
         {gitFlowBranchTypes.map((type) => (
           <button key={type} className="secondary small" onClick={() => askStartGitFlowBranch(controller, type)}>
@@ -128,7 +139,7 @@ function GitFlowSection({ controller }: { controller: RepositoryController }) {
         const branches = gitFlow.branches.filter((branch) => branch.type === type)
         if (branches.length === 0) return null
         return (
-          <Section key={type} title={`${typeLabels[type]}s`} nested>
+          <SidebarSection key={type} title={`${typeLabels[type]}s`} depth={1}>
             {branches.map((branch) => (
               <div
                 key={branch.branchName}
@@ -143,32 +154,31 @@ function GitFlowSection({ controller }: { controller: RepositoryController }) {
                 </button>
               </div>
             ))}
-          </Section>
+          </SidebarSection>
         )
       })}
-    </Section>
+    </SidebarSection>
   )
 }
 
-interface SectionProps {
-  title: string
-  count?: number
-  nested?: boolean
-  initiallyOpen?: boolean
-  children: ReactNode
+interface BranchFolderViewProps {
+  folder: BranchFolder
+  /** The depth of the folders inside `folder`. */
+  depth: number
+  renderBranch: (leaf: BranchLeaf) => ReactNode
 }
 
-function Section({ title, count, nested, initiallyOpen = true, children }: SectionProps) {
-  const [open, setOpen] = useState(initiallyOpen)
+/** Shows `feature/...` branches inside a collapsible `feature` folder, one indent level per path segment. */
+function BranchFolderView({ folder, depth, renderBranch }: BranchFolderViewProps) {
   return (
-    <section className={nested ? 'sidebar-section nested' : 'sidebar-section'}>
-      <button className="section-header" onClick={() => setOpen(!open)}>
-        <span className="chevron">{open ? '▾' : '▸'}</span>
-        <span className="section-title">{title}</span>
-        {count !== undefined && <span className="section-count">{count}</span>}
-      </button>
-      {open && <div className="section-body">{children}</div>}
-    </section>
+    <>
+      {folder.folders.map((child) => (
+        <SidebarSection key={child.path} title={child.name} count={countBranches(child)} depth={depth}>
+          <BranchFolderView folder={child} depth={depth + 1} renderBranch={renderBranch} />
+        </SidebarSection>
+      ))}
+      {folder.branches.map(renderBranch)}
+    </>
   )
 }
 

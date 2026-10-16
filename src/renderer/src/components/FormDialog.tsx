@@ -32,10 +32,26 @@ export function FormDialog({ request, onClose }: { request: DialogRequest; onClo
               />
               {field.label}
             </label>
+          ) : field.type === 'select' ? (
+            <label key={field.name} className="text-field">
+              <span>{field.label}</span>
+              <select
+                autoFocus={index === 0}
+                value={String(values[field.name])}
+                onChange={(event) => setValues({ ...values, [field.name]: event.target.value })}
+              >
+                {field.options?.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
           ) : (
             <label key={field.name} className="text-field">
               <span>{field.label}</span>
               <input
+                type={field.type}
                 autoFocus={index === 0}
                 value={String(values[field.name])}
                 placeholder={field.placeholder}

@@ -27,6 +27,14 @@ export function initials(name: string): string {
   return letters.toUpperCase()
 }
 
+/**
+ * A stash message without git's "On main: " / "WIP on main: " prefix; the graph already shows
+ * which commit the stash belongs to.
+ */
+export function stashSummary(message: string): string {
+  return message.replace(/^(?:WIP on|On) [^:]+: /, '')
+}
+
 export function shortSha(sha: string): string {
   return sha.slice(0, 7)
 }

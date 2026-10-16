@@ -1,5 +1,6 @@
 import { askCreateBranch, askStash } from '../actions'
 import { kraft } from '../kraftClient'
+import { openOtherRepository, repositoryDisplayName } from '../libraryActions'
 import type { RepositoryController } from '../useRepositoryController'
 
 export function Toolbar({ controller }: { controller: RepositoryController }) {
@@ -7,17 +8,12 @@ export function Toolbar({ controller }: { controller: RepositoryController }) {
   const busy = controller.busyLabel !== null
   const current = view.branches.find((branch) => branch.isCurrent)
 
-  const openOther = async () => {
-    const folder = await kraft.chooseRepositoryFolder()
-    if (folder) await controller.openRepository(folder)
-  }
-
   return (
     <header className="toolbar">
       <div className="toolbar-group">
-        <button className="repo-button" title={view.path} onClick={() => void openOther()}>
+        <button className="repo-button" title={`${view.path}\nClick to open another repository`} onClick={() => void openOtherRepository(controller)}>
           <span className="toolbar-caption">repository</span>
-          <span className="toolbar-value">{view.name}</span>
+          <span className="toolbar-value">{repositoryDisplayName(controller)}</span>
         </button>
         <div className="branch-indicator">
           <span className="toolbar-caption">branch</span>

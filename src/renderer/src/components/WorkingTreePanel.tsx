@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { hasConflicts, type FileChange } from '../../../domain/entities'
+import { findIssueKeys } from '../../../domain/jira'
 import { kraft } from '../kraftClient'
 import type { RepositoryController } from '../useRepositoryController'
 import { FileList } from './FileList'
+import { JiraIssueCard } from './JiraIssues'
 
 export function WorkingTreePanel({ controller }: { controller: RepositoryController }) {
   const view = controller.view!
@@ -10,6 +12,7 @@ export function WorkingTreePanel({ controller }: { controller: RepositoryControl
   const [summary, setSummary] = useState('')
   const [description, setDescription] = useState('')
   const busy = controller.busyLabel !== null
+  const branchIssueKey = controller.jira && view.currentBranch ? findIssueKeys(view.currentBranch, controller.jira.projectKeys)[0] : undefined
 
   const openDiff = (change: FileChange, isStaged: boolean) => controller.setDiff({ kind: 'working', change, staged: isStaged })
   const isOpen = (change: FileChange, isStaged: boolean) => {
@@ -55,6 +58,7 @@ export function WorkingTreePanel({ controller }: { controller: RepositoryControl
           {staged.length + unstaged.length === 0 ? 'No changes' : `${new Set(paths([...staged, ...unstaged])).size} file changes`}
         </div>
         <div className="muted small">on {view.currentBranch ?? 'detached HEAD'}</div>
+        {branchIssueKey && <JiraIssueCard issueKey={branchIssueKey} />}
         {hasConflicts(view.status) && (
           <div className="conflict-banner">Resolve the conflicted files, stage them, then commit to complete the merge.</div>
         )}

@@ -1,5 +1,6 @@
 import { layoutCommitGraph } from '../domain/commitGraph'
-import type { FileChange } from '../domain/entities'
+import { defaultDiffOptions, type DiffOptions } from '../domain/diff'
+import { hasUncommittedChanges, type Commit, type FileChange } from '../domain/entities'
 import type { GitFlowBranchType, GitFlowConfig } from '../domain/gitFlow'
 import {
   checkoutBranch,
@@ -25,35 +26,34 @@ import type { GitRepository, GitRepositoryFactory } from './ports'
 /** How many commits the graph shows; enough for daily work while keeping the view fast. */
 const graphCommitLimit = 1500
 
-export interface RecentRepositoriesStore {
-  load(): Promise<string[]>
+/** Remembers every repository that is opened, so it gets a tab. */
+export interface SavedRepositories {
   remember(path: string): Promise<void>
 }
 
 export interface FolderPicker {
-  chooseFolder(): Promise<string | null>
+  /** Asks the user for a folder; `title` says what it is for. */
+  chooseFolder(title: string): Promise<string | null>
 }
+
+const openRepositoryTitle = 'Open repository'
 
 export class KraftService implements KraftApi {
   private repository: GitRepository | null = null
 
   constructor(
     private readonly repositories: GitRepositoryFactory,
-    private readonly recent: RecentRepositoriesStore,
+    private readonly saved: SavedRepositories,
     private readonly folderPicker: FolderPicker
   ) {}
 
-  recentRepositories(): Promise<string[]> {
-    return this.recent.load()
-  }
-
-  chooseRepositoryFolder(): Promise<string | null> {
-    return this.folderPicker.chooseFolder()
+  chooseRepositoryFolder(title = openRepositoryTitle): Promise<string | null> {
+    return this.folderPicker.chooseFolder(title)
   }
 
   async openRepository(path: string): Promise<RepositoryView> {
     this.repository = await this.repositories.open(path)
-    await this.recent.remember(this.repository.path)
+    await this.saved.remember(this.repository.path)
     return this.refresh()
   }
 
@@ -73,7 +73,10 @@ export class KraftService implements KraftApi {
       path: repository.path,
       name: repositoryName(repository.path),
       currentBranch,
-      graph: layoutCommitGraph(commits),
+      graph: layoutCommitGraph(commits, {
+        stashes,
+        workInProgress: hasUncommittedChanges(status) ? { baseSha: headSha(commits) } : undefined
+      }),
       branches,
       remoteBranches,
       tags,
@@ -91,12 +94,12 @@ export class KraftService implements KraftApi {
     return { sha, message, files }
   }
 
-  commitFileDiff(sha: string, path: string): Promise<string> {
-    return this.requireRepository().commitFileDiff(sha, path)
+  commitFileDiff(sha: string, path: string, options: DiffOptions = defaultDiffOptions): Promise<string> {
+    return this.requireRepository().commitFileDiff(sha, path, options)
   }
 
-  workingFileDiff(change: FileChange, staged: boolean): Promise<string> {
-    return this.requireRepository().workingFileDiff(change, staged)
+  workingFileDiff(change: FileChange, staged: boolean, options: DiffOptions = defaultDiffOptions): Promise<string> {
+    return this.requireRepository().workingFileDiff(change, staged, options)
   }
 
   stage(paths: string[]): Promise<void> {
@@ -186,6 +189,10 @@ export class KraftService implements KraftApi {
     if (!this.repository) throw new Error('No repository is open')
     return this.repository
   }
+}
+
+function headSha(commits: Commit[]): string | null {
+  return commits.find((commit) => commit.refs.some((ref) => ref.kind === 'head'))?.sha ?? null
 }
 
 function repositoryName(path: string): string {

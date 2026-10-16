@@ -30,6 +30,10 @@ export interface Stash {
   index: number
   sha: string
   message: string
+  /** The commit the changes were stashed from (HEAD at the time). */
+  baseSha: string
+  /** ISO 8601 date the stash was made. */
+  date: string
 }
 
 export type FileChangeStatus = 'added' | 'modified' | 'deleted' | 'renamed' | 'untracked' | 'conflicted'

@@ -103,12 +103,14 @@ export function parseBranches(output: string): Branch[] {
 }
 
 /** Format for `git stash list` matching {@link parseStashes}. */
-export const stashFormat = ['%gd', '%H', '%gs'].join('%x1f')
+export const stashFormat = ['%gd', '%H', '%gs', '%P', '%aI'].join('%x1f')
 
 export function parseStashes(output: string): Stash[] {
   return lines(output).map((line) => {
-    const [selector, sha, message] = line.split(fieldSeparator)
-    return { index: Number(/\{(\d+)\}/.exec(selector)?.[1] ?? 0), sha, message }
+    const [selector, sha, message, parents, date] = line.split(fieldSeparator)
+    // A stash commit's first parent is the commit it was made on; the others hold the index and untracked files.
+    const [baseSha] = (parents ?? '').split(' ')
+    return { index: Number(/\{(\d+)\}/.exec(selector)?.[1] ?? 0), sha, message, baseSha, date: date ?? '' }
   })
 }
 

@@ -1,4 +1,5 @@
 import type { CommitGraph } from '../domain/commitGraph'
+import type { DiffOptions } from '../domain/diff'
 import type { Branch, FileChange, Stash, WorkingTreeStatus } from '../domain/entities'
 import type { GitFlowBranch, GitFlowBranchType, GitFlowConfig } from '../domain/gitFlow'
 import type { AutoStashResult } from './autoStash'
@@ -25,14 +26,14 @@ export interface CommitDetails {
 
 /** The operations the user interface can request. Every call acts on the open repository. */
 export interface KraftApi {
-  recentRepositories(): Promise<string[]>
-  chooseRepositoryFolder(): Promise<string | null>
+  /** Asks for a folder; `title` defaults to opening a repository. */
+  chooseRepositoryFolder(title?: string): Promise<string | null>
   openRepository(path: string): Promise<RepositoryView>
   refresh(): Promise<RepositoryView>
 
   commitDetails(sha: string): Promise<CommitDetails>
-  commitFileDiff(sha: string, path: string): Promise<string>
-  workingFileDiff(change: FileChange, staged: boolean): Promise<string>
+  commitFileDiff(sha: string, path: string, options?: DiffOptions): Promise<string>
+  workingFileDiff(change: FileChange, staged: boolean, options?: DiffOptions): Promise<string>
 
   stage(paths: string[]): Promise<void>
   unstage(paths: string[]): Promise<void>
@@ -63,7 +64,6 @@ export interface KraftApi {
 export type KraftMethod = keyof KraftApi
 
 export const kraftMethods: readonly KraftMethod[] = [
-  'recentRepositories',
   'chooseRepositoryFolder',
   'openRepository',
   'refresh',

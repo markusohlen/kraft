@@ -1,3 +1,4 @@
+import type { DiffOptions } from '../domain/diff'
 import type { Branch, Commit, FileChange, Stash, WorkingTreeStatus } from '../domain/entities'
 
 export interface MergeOptions {
@@ -12,10 +13,10 @@ export interface GitRepository {
   log(limit: number): Promise<Commit[]>
   commitMessage(sha: string): Promise<string>
   commitFiles(sha: string): Promise<FileChange[]>
-  commitFileDiff(sha: string, path: string): Promise<string>
+  commitFileDiff(sha: string, path: string, options: DiffOptions): Promise<string>
 
   status(): Promise<WorkingTreeStatus>
-  workingFileDiff(change: FileChange, staged: boolean): Promise<string>
+  workingFileDiff(change: FileChange, staged: boolean, options: DiffOptions): Promise<string>
   stage(paths: string[]): Promise<void>
   unstage(paths: string[]): Promise<void>
   discard(changes: FileChange[]): Promise<void>

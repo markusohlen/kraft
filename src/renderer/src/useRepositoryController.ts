@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { AutoStashResult } from '../../application/autoStash'
+import type { JiraSettingsView } from '../../application/jiraApi'
 import type { RepositoryView } from '../../application/kraftApi'
 import { hasUncommittedChanges, type FileChange } from '../../domain/entities'
+import { emptyLibrary, type RepositoryLibrary } from '../../domain/repositoryLibrary'
+import { avatarStyles, type AvatarStyle } from './avatars'
 import { kraft } from './kraftClient'
+import { usePreference } from './usePreference'
 
-export type Selection = { kind: 'wip' } | { kind: 'commit'; sha: string } | null
+export type Selection = { kind: 'wip' } | { kind: 'commit'; sha: string } | { kind: 'stash'; sha: string } | null
 
 export type DiffTarget =
   | { kind: 'working'; change: FileChange; staged: boolean }
@@ -21,9 +25,11 @@ export interface Toast {
 export interface DialogField {
   name: string
   label: string
-  type: 'text' | 'checkbox'
+  type: 'text' | 'password' | 'checkbox' | 'select'
   initial: string | boolean
   placeholder?: string
+  /** Choices for a `select` field. */
+  options?: { value: string; label: string }[]
 }
 
 export interface DialogRequest {
@@ -57,6 +63,15 @@ export function useRepositoryController() {
   const [toasts, setToasts] = useState<Toast[]>([])
   const [dialog, setDialog] = useState<DialogRequest | null>(null)
   const [contextMenu, setContextMenu] = useState<ContextMenuRequest | null>(null)
+  const [jira, setJira] = useState<JiraSettingsView | null>(null)
+  const [library, setLibrary] = useState<RepositoryLibrary>(emptyLibrary)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  /** The folder being scanned for repositories, while its dialog is open. */
+  const [scanRoot, setScanRoot] = useState<string | null>(null)
+  /** Hides the branch sidebar while a diff is open, to give the diff more width. */
+  const [diffExpanded, setDiffExpanded] = usePreference<boolean>('kraft.diffExpanded', false, [true, false])
+  /** Initials by default: profile pictures send a hash of every author's email to gravatar.com. */
+  const [avatarStyle, setAvatarStyle] = usePreference<AvatarStyle>('kraft.avatarStyle', 'initials', avatarStyles)
   const nextToastId = useRef(1)
 
   const dismissToast = useCallback((id: number) => setToasts((current) => current.filter((toast) => toast.id !== id)), [])
@@ -68,6 +83,26 @@ export function useRepositoryController() {
       if (kind === 'info') setTimeout(() => dismissToast(id), toastDurationMs)
     },
     [dismissToast]
+  )
+
+  const loadLibrary = useCallback(async () => {
+    try {
+      setLibrary(await kraft.repositoryLibrary())
+    } catch (error) {
+      notify('error', `Could not load the saved repositories: ${messageOf(error)}`)
+    }
+  }, [notify])
+
+  /** Applies a change to the saved repositories and shows the result; library edits don't need the busy indicator. */
+  const changeLibrary = useCallback(
+    async (change: () => Promise<RepositoryLibrary>) => {
+      try {
+        setLibrary(await change())
+      } catch (error) {
+        notify('error', messageOf(error))
+      }
+    },
+    [notify]
   )
 
   const refresh = useCallback(async () => {
@@ -108,6 +143,8 @@ export function useRepositoryController() {
       try {
         const opened = await kraft.openRepository(path)
         setView(opened)
+        // Opening saves the repository, which may have added a tab.
+        void loadLibrary()
         setDiff(null)
         setSelection(hasUncommittedChanges(opened.status) ? { kind: 'wip' } : null)
       } catch (error) {
@@ -116,8 +153,16 @@ export function useRepositoryController() {
         setBusyLabel(null)
       }
     },
-    [notify]
+    [notify, loadLibrary]
   )
+
+  useEffect(() => {
+    void loadLibrary()
+  }, [loadLibrary])
+
+  useEffect(() => {
+    kraft.jiraSettings().then(setJira, (error) => notify('error', `Could not load the Jira settings: ${messageOf(error)}`))
+  }, [notify])
 
   useEffect(() => {
     if (!view) return
@@ -142,6 +187,20 @@ export function useRepositoryController() {
     contextMenu,
     showMenu: setContextMenu,
     closeMenu: () => setContextMenu(null),
+    jira,
+    setJira,
+    library,
+    changeLibrary,
+    settingsOpen,
+    openSettings: () => setSettingsOpen(true),
+    closeSettings: () => setSettingsOpen(false),
+    scanRoot,
+    openScan: setScanRoot,
+    closeScan: () => setScanRoot(null),
+    diffExpanded,
+    setDiffExpanded,
+    avatarStyle,
+    setAvatarStyle,
     run,
     refresh,
     openRepository

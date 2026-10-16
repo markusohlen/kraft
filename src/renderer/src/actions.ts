@@ -1,4 +1,5 @@
 import type { MouseEvent } from 'react'
+import type { Stash } from '../../domain/entities'
 import { defaultGitFlowConfig, parseGitFlowBranch, type GitFlowBranchType } from '../../domain/gitFlow'
 import { kraft } from './kraftClient'
 import type { MenuItem, RepositoryController } from './useRepositoryController'
@@ -78,6 +79,54 @@ export function showCommitMenu(controller: RepositoryController, event: MouseEve
     { label: 'Create branch here', onSelect: () => askCreateBranch(controller, sha, sha.slice(0, 7)) },
     { label: 'Copy commit sha', onSelect: () => void navigator.clipboard.writeText(sha) }
   ])
+}
+
+export function applyStash(controller: RepositoryController, stash: Stash): void {
+  void controller.run('Applying stash', () => kraft.stashApply(stash.index), 'Stash applied')
+}
+
+export function popStash(controller: RepositoryController, stash: Stash): void {
+  void controller.run(
+    'Popping stash',
+    async () => {
+      await kraft.stashPop(stash.index)
+      forgetStashSelection(controller, stash)
+    },
+    'Stash popped'
+  )
+}
+
+export function askDropStash(controller: RepositoryController, stash: Stash): void {
+  controller.ask({
+    title: `Delete stash@{${stash.index}}?`,
+    description: `"${stash.message}" is deleted and its changes are lost.`,
+    fields: [],
+    confirmLabel: 'Delete stash',
+    danger: true,
+    onSubmit: () =>
+      void controller.run(
+        'Deleting stash',
+        async () => {
+          await kraft.stashDrop(stash.index)
+          forgetStashSelection(controller, stash)
+        },
+        'Stash deleted'
+      )
+  })
+}
+
+export function showStashMenu(controller: RepositoryController, event: MouseEvent, stash: Stash): void {
+  event.stopPropagation()
+  openMenu(controller, event, [
+    { label: 'Apply stash', onSelect: () => applyStash(controller, stash) },
+    { label: 'Pop stash (apply and delete)', onSelect: () => popStash(controller, stash) },
+    { label: 'Delete stash…', danger: true, onSelect: () => askDropStash(controller, stash) }
+  ])
+}
+
+/** A popped or deleted stash can no longer be shown, so it stops being the selection. */
+function forgetStashSelection(controller: RepositoryController, stash: Stash): void {
+  controller.setSelection((current) => (current?.kind === 'stash' && current.sha === stash.sha ? null : current))
 }
 
 export function askInitGitFlow(controller: RepositoryController): void {

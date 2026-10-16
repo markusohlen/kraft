@@ -1,11 +1,16 @@
+import { useId } from 'react'
 import type { GraphRow } from '../../../domain/commitGraph'
+import { useProfilePicture, type AvatarStyle } from '../avatars'
 import { initials, laneColor } from '../format'
 
-export const rowHeight = 34
-const laneWidth = 20
-const graphPadding = 8
-const avatarRadius = 11
-const mergeNodeRadius = 5
+export const rowHeight = 30
+const laneWidth = 18
+const graphPadding = 10
+const avatarRadius = 10
+const mergeNodeRadius = 4.5
+const stashNodeHalfSize = 9
+/** How round the corner is where a line turns between a lane and a node. */
+const cornerRadius = 8
 const middle = rowHeight / 2
 
 export function graphWidth(laneCount: number): number {
@@ -16,68 +21,115 @@ function laneX(lane: number): number {
   return graphPadding + lane * laneWidth + laneWidth / 2
 }
 
-/** How the dashed line from the WIP row to the HEAD commit crosses this row. */
-export type WipConnector = 'none' | 'through' | 'into-node'
-
 interface GraphCellProps {
   row: GraphRow
   width: number
-  wipConnector: WipConnector
-  wipLane: number
+  /** Draws the thin line that links the row's branch pills to its node. */
+  hasRefs: boolean
+  avatarStyle: AvatarStyle
 }
 
-export function GraphCell({ row, width, wipConnector, wipLane }: GraphCellProps) {
+export function GraphCell({ row, width, hasRefs, avatarStyle }: GraphCellProps) {
   const nodeX = laneX(row.lane)
-  const isMerge = row.commit.parents.length > 1
+  const color = laneColor(row.lane)
+  // Lines from a stash or the uncommitted changes to their commit are dotted.
+  const outgoingDotted = row.kind !== 'commit'
   return (
     <svg className="graph-cell" width={width} height={rowHeight}>
-      {wipConnector !== 'none' && (
-        <line
-          className="wip-line"
-          x1={laneX(wipLane)}
-          y1={0}
-          x2={laneX(wipLane)}
-          y2={wipConnector === 'through' ? rowHeight : middle}
-          stroke={laneColor(wipLane)}
-        />
-      )}
+      <rect className="row-band" x={nodeX} y={2} width={Math.max(0, width - nodeX)} height={rowHeight - 4} fill={color} />
+      {hasRefs && <line className="ref-link" x1={0} y1={middle} x2={nodeX} y2={middle} stroke={color} />}
       {row.passThroughLanes.map((lane) => (
-        <line key={`p${lane}`} x1={laneX(lane)} y1={0} x2={laneX(lane)} y2={rowHeight} stroke={laneColor(lane)} strokeWidth={2} />
+        <Edge key={`p${lane}`} d={`M ${laneX(lane)} 0 V ${rowHeight}`} color={laneColor(lane)} dotted={row.dottedPassThroughLanes.includes(lane)} />
       ))}
       {row.incomingLanes.map((lane) => (
-        <path key={`i${lane}`} d={edgePath(laneX(lane), 0, nodeX, middle)} stroke={laneColor(lane)} strokeWidth={2} fill="none" />
+        <Edge key={`i${lane}`} d={incomingPath(laneX(lane), nodeX)} color={laneColor(lane)} dotted={row.dottedIncomingLanes.includes(lane)} />
       ))}
       {row.outgoingLanes.map((lane) => (
-        <path key={`o${lane}`} d={edgePath(nodeX, middle, laneX(lane), rowHeight)} stroke={laneColor(lane)} strokeWidth={2} fill="none" />
+        <Edge key={`o${lane}`} d={outgoingPath(nodeX, laneX(lane))} color={laneColor(lane)} dotted={outgoingDotted} />
       ))}
-      {isMerge ? (
-        <circle cx={nodeX} cy={middle} r={mergeNodeRadius} fill={laneColor(row.lane)} />
-      ) : (
-        <g>
-          <circle cx={nodeX} cy={middle} r={avatarRadius + 2} fill={laneColor(row.lane)} />
-          <circle cx={nodeX} cy={middle} r={avatarRadius} fill="#2b303b" />
-          <text x={nodeX} y={middle} className="avatar-text" fill={laneColor(row.lane)}>
-            {initials(row.commit.authorName)}
-          </text>
-        </g>
-      )}
+      <GraphNode row={row} x={nodeX} color={color} avatarStyle={avatarStyle} />
     </svg>
   )
 }
 
-export function WipGraphCell({ width, lane }: { width: number; lane: number }) {
-  const x = laneX(lane)
+function Edge({ d, color, dotted }: { d: string; color: string; dotted: boolean }) {
+  return <path className={dotted ? 'edge dotted' : 'edge'} d={d} stroke={color} />
+}
+
+function GraphNode({ row, x, color, avatarStyle }: { row: GraphRow; x: number; color: string; avatarStyle: AvatarStyle }) {
+  if (row.kind === 'work-in-progress') {
+    return <circle className="wip-node" cx={x} cy={middle} r={avatarRadius} stroke={color} />
+  }
+  if (row.kind === 'stash') {
+    const size = stashNodeHalfSize * 2
+    return (
+      <g className="stash-node" stroke={color}>
+        <rect x={x - stashNodeHalfSize} y={middle - stashNodeHalfSize} width={size} height={size} rx={3} />
+        {/* An inbox tray: stashed changes put aside. */}
+        <path transform={`translate(${x} ${middle})`} d="M -5 0 H -2 L -1 2 H 1 L 2 0 H 5 V 4 H -5 Z M -3 -4.5 H 3 M -4 -2.2 H 4" />
+      </g>
+    )
+  }
+  if (row.commit.parents.length > 1) {
+    return <circle cx={x} cy={middle} r={mergeNodeRadius} fill={color} />
+  }
+  return <AvatarNode x={x} color={color} name={row.commit.authorName} email={row.commit.authorEmail} avatarStyle={avatarStyle} />
+}
+
+interface AvatarNodeProps {
+  x: number
+  color: string
+  name: string
+  email: string
+  avatarStyle: AvatarStyle
+}
+
+/** The author's picture (or initials) in a ring of the lane's color. */
+function AvatarNode({ x, color, name, email, avatarStyle }: AvatarNodeProps) {
+  const { url, onError } = useProfilePicture(email, avatarStyle)
+  // Every row is its own <svg>, but clip-path ids are shared by the whole page, so each needs its own.
+  const clipId = `avatar-clip-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`
   return (
-    <svg className="graph-cell" width={width} height={rowHeight}>
-      <line className="wip-line" x1={x} y1={middle} x2={x} y2={rowHeight} stroke={laneColor(lane)} />
-      <circle className="wip-node" cx={x} cy={middle} r={avatarRadius} stroke={laneColor(lane)} />
-    </svg>
+    <g>
+      <circle cx={x} cy={middle} r={avatarRadius + 2} fill={color} />
+      <circle cx={x} cy={middle} r={avatarRadius} fill="#2b303b" />
+      {url ? (
+        <>
+          <clipPath id={clipId}>
+            <circle cx={x} cy={middle} r={avatarRadius} />
+          </clipPath>
+          <image
+            href={url}
+            x={x - avatarRadius}
+            y={middle - avatarRadius}
+            width={avatarRadius * 2}
+            height={avatarRadius * 2}
+            clipPath={`url(#${clipId})`}
+            preserveAspectRatio="xMidYMid slice"
+            onError={onError}
+          />
+        </>
+      ) : (
+        <text x={x} y={middle} className="avatar-text" fill={color}>
+          {initials(name)}
+        </text>
+      )}
+    </g>
   )
 }
 
-/** Straight line within a lane; an S-curve when moving between lanes. */
-function edgePath(fromX: number, fromY: number, toX: number, toY: number): string {
-  if (fromX === toX) return `M ${fromX} ${fromY} L ${toX} ${toY}`
-  const bend = (toY - fromY) / 2
-  return `M ${fromX} ${fromY} C ${fromX} ${fromY + bend}, ${toX} ${toY - bend}, ${toX} ${toY}`
+/** A child's line: straight down its own lane, then a rounded turn sideways into the node. */
+function incomingPath(fromX: number, nodeX: number): string {
+  if (fromX === nodeX) return `M ${fromX} 0 V ${middle}`
+  const direction = Math.sign(nodeX - fromX)
+  const radius = Math.min(cornerRadius, Math.abs(nodeX - fromX), middle)
+  return `M ${fromX} 0 V ${middle - radius} Q ${fromX} ${middle} ${fromX + direction * radius} ${middle} H ${nodeX}`
+}
+
+/** A line to a parent in another lane: sideways out of the node, then a rounded turn down into that lane. */
+function outgoingPath(nodeX: number, toX: number): string {
+  if (nodeX === toX) return `M ${nodeX} ${middle} V ${rowHeight}`
+  const direction = Math.sign(toX - nodeX)
+  const radius = Math.min(cornerRadius, Math.abs(toX - nodeX), middle)
+  return `M ${nodeX} ${middle} H ${toX - direction * radius} Q ${toX} ${middle} ${toX} ${middle + radius} V ${rowHeight}`
 }

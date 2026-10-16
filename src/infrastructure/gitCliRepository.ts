@@ -1,5 +1,6 @@
 import { readFile, stat } from 'node:fs/promises'
 import { join } from 'node:path'
+import type { DiffOptions } from '../domain/diff'
 import type { Branch, Commit, FileChange, Stash, WorkingTreeStatus } from '../domain/entities'
 import type { GitRepository, GitRepositoryFactory, MergeOptions } from '../application/ports'
 import { runGit, type GitCommandOptions } from './gitCommand'
@@ -52,21 +53,21 @@ export class GitCliRepository implements GitRepository {
     return parseNameStatus(await this.git(args))
   }
 
-  async commitFileDiff(sha: string, path: string): Promise<string> {
+  async commitFileDiff(sha: string, path: string, options: DiffOptions): Promise<string> {
     const parent = await this.firstParent(sha)
     return parent
-      ? this.git(['diff', '-M', parent, sha, '--', path])
-      : this.git(['show', '--format=', sha, '--', path])
+      ? this.git(['diff', '-M', ...contextArgs(options), parent, sha, '--', path])
+      : this.git(['show', '--format=', ...contextArgs(options), sha, '--', path])
   }
 
   async status(): Promise<WorkingTreeStatus> {
     return parseStatus(await this.git(['status', '--porcelain=v1', '-z', '--untracked-files=all']))
   }
 
-  async workingFileDiff(change: FileChange, staged: boolean): Promise<string> {
+  async workingFileDiff(change: FileChange, staged: boolean, options: DiffOptions): Promise<string> {
     if (change.status === 'untracked') return this.untrackedFileDiff(change.path)
     const paths = change.oldPath ? [change.oldPath, change.path] : [change.path]
-    return this.git(['diff', '-M', ...(staged ? ['--cached'] : []), '--', ...paths])
+    return this.git(['diff', '-M', ...contextArgs(options), ...(staged ? ['--cached'] : []), '--', ...paths])
   }
 
   async stage(paths: string[]): Promise<void> {
@@ -228,4 +229,13 @@ export class GitCliRepository implements GitRepository {
   private run(args: string[], options?: GitCommandOptions) {
     return runGit(this.path, args, options)
   }
+}
+
+/**
+ * Git has no "whole file" switch for diffs; context larger than any source file has the same effect.
+ */
+const fullFileContextLines = 1_000_000
+
+function contextArgs(options: DiffOptions): string[] {
+  return options.fullFile ? [`--unified=${fullFileContextLines}`] : []
 }

@@ -25,6 +25,9 @@ describe('branch operations with auto-stash', () => {
     const stashes = await test.repository.stashes()
     expect(stashes).toHaveLength(1)
     expect(stashes[0].message).toContain('Auto stash before checking out "other"')
+    // The stash remembers the commit it was made on, which the graph joins it to.
+    expect(stashes[0].baseSha).toBe(await test.git('rev-parse', 'main'))
+    expect(Number.isNaN(Date.parse(stashes[0].date))).toBe(false)
   })
 
   it('does not stash when the working tree is clean', async () => {
