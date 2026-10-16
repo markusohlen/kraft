@@ -90,6 +90,15 @@ const COMMANDS = {
     git(repo, 'checkout', '-q', 'main')
     write('README.md', 'Widgets\n\nA demo repository.\n')
     commit('Describe the project')
+    // `upstream` really fetches from the server, where a teammate has pushed to release/1.0 since the last fetch.
+    git(repo, 'remote', 'add', 'upstream', server)
+    git(repo, 'fetch', '-q', 'upstream')
+    const teammate = path.join(root, 'teammate')
+    git(root, 'clone', '-q', '-b', 'release/1.0', server, teammate)
+    fs.writeFileSync(path.join(teammate, 'CHANGELOG.md'), '1.0.0: first release\n')
+    git(teammate, 'add', '.')
+    git(teammate, '-c', 'user.name=Grace Hopper', '-c', 'user.email=grace@example.com', '-c', 'commit.gpgsign=false', 'commit', '-qm', 'Add changelog')
+    git(teammate, 'push', '-q', 'origin', 'release/1.0')
     log('demo:', repo, 'server:', server)
   },
 
@@ -127,6 +136,19 @@ const COMMANDS = {
   async 'right-click-branch'(text) {
     await requirePage().locator('.sidebar-item', { hasText: text }).first().click({ button: 'right' })
     log('menu:', await page.locator('.context-item').allTextContents())
+  },
+
+  /** Double-clicks the sidebar branch whose full name is `name` (e.g. `upstream/release/1.0`), which checks it out. */
+  async 'dblclick-branch'(name) {
+    const found = await requirePage().evaluate((wanted) => {
+      const item = [...document.querySelectorAll('.sidebar-item')].find((element) => element.title.split('\n')[0] === wanted)
+      item?.setAttribute('data-driver-target', '')
+      return Boolean(item)
+    }, name)
+    if (!found) return log('ERROR: no sidebar branch', name)
+    await page.locator('[data-driver-target]').dblclick()
+    await page.evaluate(() => document.querySelector('[data-driver-target]')?.removeAttribute('data-driver-target'))
+    log('double-clicked', name)
   },
 
   /** Clicks the button whose text is `text` (exact match first, then containing). */

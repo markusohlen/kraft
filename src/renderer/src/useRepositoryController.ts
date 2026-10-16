@@ -9,6 +9,7 @@ import { openInBrowser } from './browser'
 import { kraft } from './kraftClient'
 import { CherryPickPresenter } from './presenters/cherryPickPresenter'
 import { PullRequestPresenter } from './presenters/pullRequestPresenter'
+import { RemoteBranchPresenter } from './presenters/remoteBranchPresenter'
 import { usePreference } from './usePreference'
 
 export type Selection = { kind: 'wip' } | { kind: 'commit'; sha: string } | { kind: 'stash'; sha: string } | null
@@ -144,6 +145,7 @@ export function useRepositoryController() {
   const presenters = useMemo(
     () => ({
       cherryPick: new CherryPickPresenter(kraft, { run, notify }),
+      remoteBranch: new RemoteBranchPresenter(kraft, { run, notify }),
       pullRequest: new PullRequestPresenter(kraft, {
         run,
         notify,

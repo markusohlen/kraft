@@ -9,8 +9,9 @@ export function checkoutLocal(controller: RepositoryController, branch: string):
   void controller.run(`Checking out ${branch}`, () => kraft.checkoutBranch(branch))
 }
 
+/** Fetches the remote branch first, so its local branch is checked out with the newest commits. */
 export function checkoutRemote(controller: RepositoryController, remoteBranch: string): void {
-  void controller.run(`Checking out ${remoteBranch}`, () => kraft.checkoutRemoteBranch(remoteBranch))
+  void controller.presenters.remoteBranch.checkout(remoteBranch)
 }
 
 export function askCreateBranch(controller: RepositoryController, startPoint: string, startLabel = startPoint): void {

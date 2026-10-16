@@ -84,17 +84,31 @@ kraft ss 02-after
 kraft quit
 ```
 
+Double-clicking a remote branch fetches it first, then checks out and fast-forwards its local branch.
+In the demo a teammate has pushed to `release/1.0` since `upstream` was last fetched:
+
+```bash
+rm -rf /tmp/kraft-demo
+kraft launch
+kraft make-demo /tmp/kraft-demo
+kraft open-repo /tmp/kraft-demo/demo
+kraft dblclick-branch upstream/release/1.0
+kraft idle
+kraft toasts                             # ["Updated release/1.0 with 1 commit from upstream/release/1.0"]
+```
+
 Screenshots land in `/tmp/kraft-shots/` (override with `SCREENSHOT_DIR`); open them with Read and
 look at them. The driver log is `/tmp/kraft-driver.log` (override with `KRAFT_DRIVER_LOG`).
 
 | command | what it does |
 |---|---|
 | `launch` | starts Electron with a fresh profile and waits for the welcome screen or toolbar |
-| `make-demo <dir>` | creates `<dir>/demo` (branches `main`, `release/1.0`, `feature/login`) and `<dir>/demo-server.git` |
+| `make-demo <dir>` | creates `<dir>/demo` (branches `main`, `release/1.0`, `feature/login`; remotes `origin`, `upstream`), `<dir>/demo-server.git` and a teammate clone that pushed one commit `upstream` has not fetched |
 | `open-repo <path>` | opens a repository; the native folder dialog is answered with `<path>` |
 | `ss [name]` | screenshot of the window |
 | `right-click-row <text>` | right-clicks the first commit-graph row containing `<text>`, prints the menu |
 | `right-click-branch <text>` | right-clicks the first sidebar item containing `<text>`, prints the menu |
+| `dblclick-branch <name>` | double-clicks the sidebar branch with that full name (`main`, `upstream/release/1.0`) |
 | `click-text <text>` | clicks the button with exactly that text, else the first containing it |
 | `click <css>` / `select <value>` | clicks an element / picks an option in the open dialog's select |
 | `type <text>` / `press <key>` | keyboard input |
@@ -118,7 +132,7 @@ Headless it opens nothing you can see.
 
 ```bash
 npm run typecheck
-npm test                                  # vitest; 159 tests in 22 files
+npm test                                  # vitest; 168 tests in 24 files
 ```
 
 Most changes touch `src/application` or `src/domain`. The tests in `test/application` run the use
@@ -139,7 +153,9 @@ with `npx vitest run test/application/cherryPick.test.ts`.
 - **Each `launch` uses a new profile** (`--user-data-dir` in `/tmp`), so saved repositories and tabs
   from earlier runs don't appear. Set `KRAFT_USER_DATA=<dir>` to keep one.
 - **The demo's `origin` fetches from `git@github.com:acme/widgets.git` but pushes to the local bare
-  repository** (`remote.origin.pushurl`). Push and pull requests work offline; Fetch and Pull fail.
+  repository** (`remote.origin.pushurl`). Push and pull requests work offline, but fetching `origin`
+  fails: Fetch, Pull, and double-clicking an `origin/…` branch, which then warns and checks out what was
+  last fetched. The `upstream` remote points at the same local server and fetches for real.
 - **The commit graph is virtualized.** Only rows near the visible area exist in the DOM, so
   `right-click-row` only finds commits that are on screen.
 - **Info toasts disappear after 6 seconds.** Run `toasts` right after `idle`.

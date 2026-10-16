@@ -3,6 +3,7 @@ import type { DiffOptions } from '../domain/diff'
 import type { Branch, FileChange, Stash, WorkingTreeStatus } from '../domain/entities'
 import type { GitFlowBranch, GitFlowBranchType, GitFlowConfig } from '../domain/gitFlow'
 import type { AutoStashResult } from './autoStash'
+import type { RemoteCheckoutResult } from './branchOperations'
 import type { FinishGitFlowOptions, FinishGitFlowResult } from './gitFlowOperations'
 import type { PullRequestPage } from './pullRequestOperations'
 
@@ -43,7 +44,8 @@ export interface KraftApi {
   commit(message: string): Promise<void>
 
   checkoutBranch(branch: string): Promise<AutoStashResult>
-  checkoutRemoteBranch(remoteBranch: string): Promise<AutoStashResult>
+  /** Fetches the remote branch, then checks out its local branch and fast-forwards it when it is behind. */
+  checkoutRemoteBranch(remoteBranch: string): Promise<RemoteCheckoutResult>
   createBranch(name: string, startPoint: string): Promise<AutoStashResult>
   deleteBranch(branch: string, force: boolean): Promise<void>
   mergeIntoCurrent(branch: string): Promise<AutoStashResult>
