@@ -12,6 +12,7 @@ export interface GitRepository {
 
   log(limit: number): Promise<Commit[]>
   commitMessage(sha: string): Promise<string>
+  commitParents(sha: string): Promise<string[]>
   commitFiles(sha: string): Promise<FileChange[]>
   commitFileDiff(sha: string, path: string, options: DiffOptions): Promise<string>
 
@@ -34,6 +35,10 @@ export interface GitRepository {
   deleteBranch(name: string, force: boolean): Promise<void>
   merge(branch: string, options: MergeOptions): Promise<void>
   rebase(onto: string): Promise<void>
+  /** Commits the changes of `sha` on HEAD; `mainline` is the parent number a merge commit is compared with. */
+  cherryPick(sha: string, mainline: number | null): Promise<void>
+  isCherryPickInProgress(): Promise<boolean>
+  abortCherryPick(): Promise<void>
   createTag(name: string, message: string): Promise<void>
 
   stashes(): Promise<Stash[]>
@@ -46,6 +51,10 @@ export interface GitRepository {
   fetch(): Promise<void>
   pull(): Promise<void>
   push(branch: string, setUpstreamRemote: string | null): Promise<void>
+  /** Pushes a local branch, checked out or not, to `remoteBranch` on `remote` without changing its upstream. */
+  pushBranch(branch: string, remote: string, remoteBranch: string): Promise<void>
+  /** The URL the remote fetches from, with `insteadOf` rewrites applied. */
+  remoteUrl(remote: string): Promise<string>
 
   getConfig(key: string): Promise<string | null>
   setConfig(key: string, value: string): Promise<void>

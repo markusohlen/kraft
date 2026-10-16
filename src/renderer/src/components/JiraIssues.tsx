@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { issueUrl, splitByIssueKeys, type JiraIssue } from '../../../domain/jira'
-import { openInBrowser } from '../jiraActions'
+import { openInBrowser } from '../browser'
 import { kraft } from '../kraftClient'
 import type { RepositoryController } from '../useRepositoryController'
 

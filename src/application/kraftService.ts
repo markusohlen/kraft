@@ -5,6 +5,7 @@ import type { GitFlowBranchType, GitFlowConfig } from '../domain/gitFlow'
 import {
   checkoutBranch,
   checkoutRemoteBranch,
+  cherryPick,
   createAndCheckoutBranch,
   deleteBranch,
   mergeIntoCurrent,
@@ -22,6 +23,7 @@ import {
 } from './gitFlowOperations'
 import type { CommitDetails, KraftApi, RepositoryView } from './kraftApi'
 import type { GitRepository, GitRepositoryFactory } from './ports'
+import { createPullRequest } from './pullRequestOperations'
 
 /** How many commits the graph shows; enough for daily work while keeping the view fast. */
 const graphCommitLimit = 1500
@@ -59,11 +61,12 @@ export class KraftService implements KraftApi {
 
   async refresh(): Promise<RepositoryView> {
     const repository = this.requireRepository()
-    const [commits, currentBranch, branches, remoteBranches, tags, stashes, status, gitFlowConfig] = await Promise.all([
+    const [commits, currentBranch, branches, remoteBranches, remotes, tags, stashes, status, gitFlowConfig] = await Promise.all([
       repository.log(graphCommitLimit),
       repository.currentBranch(),
       repository.branches(),
       repository.remoteBranches(),
+      repository.remotes(),
       repository.tags(),
       repository.stashes(),
       repository.status(),
@@ -79,6 +82,7 @@ export class KraftService implements KraftApi {
       }),
       branches,
       remoteBranches,
+      remotes,
       tags,
       stashes,
       status,
@@ -145,6 +149,10 @@ export class KraftService implements KraftApi {
     return rebaseCurrentOnto(this.requireRepository(), onto)
   }
 
+  cherryPick(sha: string) {
+    return cherryPick(this.requireRepository(), sha)
+  }
+
   stash(message: string): Promise<boolean> {
     return this.requireRepository().stashPush(message.trim() || 'WIP')
   }
@@ -171,6 +179,10 @@ export class KraftService implements KraftApi {
 
   push(): Promise<void> {
     return pushCurrent(this.requireRepository())
+  }
+
+  createPullRequest(branch: string, targetBranch: string) {
+    return createPullRequest(this.requireRepository(), branch, targetBranch)
   }
 
   initGitFlow(config: GitFlowConfig): Promise<void> {

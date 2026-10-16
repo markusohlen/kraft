@@ -1,4 +1,4 @@
-import { askCreateBranch, askStash } from '../actions'
+import { askCreateBranch, askCreatePullRequest, askStash } from '../actions'
 import { kraft } from '../kraftClient'
 import { openOtherRepository, repositoryDisplayName } from '../libraryActions'
 import type { RepositoryController } from '../useRepositoryController'
@@ -36,6 +36,12 @@ export function Toolbar({ controller }: { controller: RepositoryController }) {
           badge={current?.ahead}
           disabled={busy || !view.currentBranch}
           onClick={() => void controller.run('Pushing', () => kraft.push(), 'Pushed')}
+        />
+        <ToolbarButton
+          icon="⇄"
+          label="PR"
+          disabled={busy || !view.currentBranch || view.remotes.length === 0}
+          onClick={() => view.currentBranch && askCreatePullRequest(controller, view.currentBranch)}
         />
         <span className="toolbar-divider" />
         <ToolbarButton icon="⑂" label="Branch" disabled={busy} onClick={() => askCreateBranch(controller, 'HEAD', view.currentBranch ?? 'HEAD')} />
