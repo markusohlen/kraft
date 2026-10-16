@@ -1,11 +1,14 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { AutoStashResult } from '../../application/autoStash'
 import type { JiraSettingsView } from '../../application/jiraApi'
 import type { RepositoryView } from '../../application/kraftApi'
 import { hasUncommittedChanges, type FileChange } from '../../domain/entities'
 import { emptyLibrary, type RepositoryLibrary } from '../../domain/repositoryLibrary'
 import { avatarStyles, type AvatarStyle } from './avatars'
+import { openInBrowser } from './browser'
 import { kraft } from './kraftClient'
+import { CherryPickPresenter } from './presenters/cherryPickPresenter'
+import { PullRequestPresenter } from './presenters/pullRequestPresenter'
 import { usePreference } from './usePreference'
 
 export type Selection = { kind: 'wip' } | { kind: 'commit'; sha: string } | { kind: 'stash'; sha: string } | null
@@ -137,6 +140,27 @@ export function useRepositoryController() {
     [notify, refresh]
   )
 
+  /** The presenters' views are this window: its busy indicator, toasts, dialogs and the browser. */
+  const presenters = useMemo(
+    () => ({
+      cherryPick: new CherryPickPresenter(kraft, { run, notify }),
+      pullRequest: new PullRequestPresenter(kraft, {
+        run,
+        notify,
+        openInBrowser,
+        chooseTarget: (choice, onChoose) =>
+          setDialog({
+            title: choice.title,
+            description: choice.description,
+            fields: [{ name: 'target', label: choice.label, type: 'select', initial: choice.initial, options: choice.options }],
+            confirmLabel: choice.confirmLabel,
+            onSubmit: ({ target }) => onChoose(String(target))
+          })
+      })
+    }),
+    [run, notify]
+  )
+
   const openRepository = useCallback(
     async (path: string) => {
       setBusyLabel('Opening repository')
@@ -203,7 +227,8 @@ export function useRepositoryController() {
     setAvatarStyle,
     run,
     refresh,
-    openRepository
+    openRepository,
+    presenters
   }
 }
 
