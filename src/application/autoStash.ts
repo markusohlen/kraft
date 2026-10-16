@@ -30,5 +30,6 @@ export const autoStashMessages = {
   checkout: (branch: string) => `Auto stash before checking out "${branch}"`,
   merge: (branch: string) => `Auto stash before merge of "${branch}"`,
   rebase: (onto: string) => `Auto stash before rebase onto "${onto}"`,
+  cherryPick: (commit: string) => `Auto stash before cherry-pick of "${commit}"`,
   pull: (branch: string) => `Auto stash before pull of "${branch}"`
 }

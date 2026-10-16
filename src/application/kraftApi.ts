@@ -4,6 +4,7 @@ import type { Branch, FileChange, Stash, WorkingTreeStatus } from '../domain/ent
 import type { GitFlowBranch, GitFlowBranchType, GitFlowConfig } from '../domain/gitFlow'
 import type { AutoStashResult } from './autoStash'
 import type { FinishGitFlowOptions, FinishGitFlowResult } from './gitFlowOperations'
+import type { PullRequestPage } from './pullRequestOperations'
 
 export interface RepositoryView {
   path: string
@@ -12,6 +13,7 @@ export interface RepositoryView {
   graph: CommitGraph
   branches: Branch[]
   remoteBranches: string[]
+  remotes: string[]
   tags: string[]
   stashes: Stash[]
   status: WorkingTreeStatus
@@ -46,6 +48,7 @@ export interface KraftApi {
   deleteBranch(branch: string, force: boolean): Promise<void>
   mergeIntoCurrent(branch: string): Promise<AutoStashResult>
   rebaseCurrentOnto(onto: string): Promise<AutoStashResult>
+  cherryPick(sha: string): Promise<AutoStashResult>
 
   stash(message: string): Promise<boolean>
   stashPop(index: number): Promise<void>
@@ -55,6 +58,8 @@ export interface KraftApi {
   fetch(): Promise<void>
   pull(): Promise<AutoStashResult>
   push(): Promise<void>
+  /** Pushes the branch if needed and returns the page that creates its pull request. */
+  createPullRequest(branch: string, targetBranch: string): Promise<PullRequestPage>
 
   initGitFlow(config: GitFlowConfig): Promise<void>
   startGitFlowBranch(type: GitFlowBranchType, name: string): Promise<AutoStashResult>
@@ -80,6 +85,7 @@ export const kraftMethods: readonly KraftMethod[] = [
   'deleteBranch',
   'mergeIntoCurrent',
   'rebaseCurrentOnto',
+  'cherryPick',
   'stash',
   'stashPop',
   'stashApply',
@@ -87,6 +93,7 @@ export const kraftMethods: readonly KraftMethod[] = [
   'fetch',
   'pull',
   'push',
+  'createPullRequest',
   'initGitFlow',
   'startGitFlowBranch',
   'finishGitFlowBranch'

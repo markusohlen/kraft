@@ -1,3 +1,4 @@
+import { hasUncommittedChanges } from '../domain/entities'
 import { autoStashMessages, withAutoStash, type AutoStashResult } from './autoStash'
 import type { GitRepository } from './ports'
 
@@ -50,6 +51,30 @@ export async function mergeIntoCurrent(repository: GitRepository, branch: string
 
 export async function rebaseCurrentOnto(repository: GitRepository, onto: string): Promise<AutoStashResult> {
   return withAutoStash(repository, autoStashMessages.rebase(onto), 'pop', () => repository.rebase(onto))
+}
+
+/**
+ * Commits the changes of `sha` on top of HEAD. A merge commit brings the changes it merged in, compared
+ * with its first parent. On conflicts the cherry-pick stays in progress; committing the resolved files
+ * finishes it and keeps the original author.
+ */
+export async function cherryPick(repository: GitRepository, sha: string): Promise<AutoStashResult> {
+  const commit = sha.slice(0, 7)
+  const mainline = (await repository.commitParents(sha)).length > 1 ? 1 : null
+  let alreadyApplied = false
+  const result = await withAutoStash(repository, autoStashMessages.cherryPick(commit), 'pop', async () => {
+    try {
+      await repository.cherryPick(sha, mainline)
+    } catch (error) {
+      // When HEAD already has the changes git stops with an empty cherry-pick in progress; cancel it so nothing is left behind.
+      if (!(await repository.isCherryPickInProgress()) || hasUncommittedChanges(await repository.status())) throw error
+      await repository.abortCherryPick()
+      alreadyApplied = true
+    }
+  })
+  // Reported after the auto-stash is popped, since nothing changed.
+  if (alreadyApplied) throw new Error(`The changes in ${commit} are already on ${(await repository.currentBranch()) ?? 'HEAD'}`)
+  return result
 }
 
 export async function pullCurrent(repository: GitRepository): Promise<AutoStashResult> {

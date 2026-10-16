@@ -45,6 +45,11 @@ export class GitCliRepository implements GitRepository {
     return (await this.git(['show', '-s', '--format=%B', sha])).trim()
   }
 
+  async commitParents(sha: string): Promise<string[]> {
+    const [, ...parents] = (await this.git(['rev-list', '--parents', '-n1', sha])).trim().split(' ')
+    return parents
+  }
+
   async commitFiles(sha: string): Promise<FileChange[]> {
     const parent = await this.firstParent(sha)
     const args = parent
@@ -145,6 +150,18 @@ export class GitCliRepository implements GitRepository {
     await this.git(['rebase', onto])
   }
 
+  async cherryPick(sha: string, mainline: number | null): Promise<void> {
+    await this.git(['cherry-pick', ...(mainline === null ? [] : ['-m', String(mainline)]), sha])
+  }
+
+  isCherryPickInProgress(): Promise<boolean> {
+    return this.refExists('CHERRY_PICK_HEAD')
+  }
+
+  async abortCherryPick(): Promise<void> {
+    await this.git(['cherry-pick', '--abort'])
+  }
+
   async createTag(name: string, message: string): Promise<void> {
     await this.git(['tag', '-a', name, '-m', message])
   }
@@ -184,6 +201,14 @@ export class GitCliRepository implements GitRepository {
     await this.git(setUpstreamRemote ? ['push', '-u', setUpstreamRemote, branch] : ['push'])
   }
 
+  async pushBranch(branch: string, remote: string, remoteBranch: string): Promise<void> {
+    await this.git(['push', remote, `refs/heads/${branch}:refs/heads/${remoteBranch}`])
+  }
+
+  async remoteUrl(remote: string): Promise<string> {
+    return (await this.git(['remote', 'get-url', remote])).trim()
+  }
+
   async getConfig(key: string): Promise<string | null> {
     const { stdout, exitCode } = await this.run(['config', '--get', key], { acceptedExitCodes: [notFoundExitCode] })
     return exitCode === 0 ? stdout.trim() : null
@@ -202,7 +227,7 @@ export class GitCliRepository implements GitRepository {
   }
 
   private async firstParent(sha: string): Promise<string | null> {
-    const [, parent] = (await this.git(['rev-list', '--parents', '-n1', sha])).trim().split(' ')
+    const [parent] = await this.commitParents(sha)
     return parent ?? null
   }
 

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type MouseEvent } from 'react'
 import type { JiraIssue } from '../../../domain/jira'
-import { askCreateIssueBranch, askDisconnectJira, askJiraSettings, assignToMe, openInBrowser } from '../jiraActions'
+import { openInBrowser } from '../browser'
+import { askCreateIssueBranch, askDisconnectJira, askJiraSettings, assignToMe } from '../jiraActions'
 import { kraft } from '../kraftClient'
 import type { RepositoryController } from '../useRepositoryController'
 import { JiraColumnsDialog } from './JiraColumnsDialog'

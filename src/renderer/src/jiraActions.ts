@@ -122,8 +122,3 @@ export function assignToMe(controller: RepositoryController, issue: JiraIssue, o
 function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
-
-export function openInBrowser(url: string): void {
-  // The main process sends new-window requests for web links to the default browser.
-  window.open(url)
-}

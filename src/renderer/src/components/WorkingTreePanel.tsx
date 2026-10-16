@@ -60,7 +60,7 @@ export function WorkingTreePanel({ controller }: { controller: RepositoryControl
         <div className="muted small">on {view.currentBranch ?? 'detached HEAD'}</div>
         {branchIssueKey && <JiraIssueCard issueKey={branchIssueKey} />}
         {hasConflicts(view.status) && (
-          <div className="conflict-banner">Resolve the conflicted files, stage them, then commit to complete the merge.</div>
+          <div className="conflict-banner">Resolve the conflicted files, stage them, then commit to complete the merge or cherry-pick.</div>
         )}
       </div>
 

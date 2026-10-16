@@ -1,6 +1,9 @@
 import type { MouseEvent } from 'react'
-import type { Stash } from '../../domain/entities'
+import type { Commit, Stash } from '../../domain/entities'
 import { defaultGitFlowConfig, parseGitFlowBranch, type GitFlowBranchType } from '../../domain/gitFlow'
+import { defaultPullRequestTarget, pullRequestSource, pullRequestTargets } from '../../domain/pullRequest'
+import { openInBrowser } from './browser'
+import { shortSha } from './format'
 import { kraft } from './kraftClient'
 import type { MenuItem, RepositoryController } from './useRepositoryController'
 
@@ -20,6 +23,50 @@ export function askCreateBranch(controller: RepositoryController, startPoint: st
     confirmLabel: 'Create branch',
     onSubmit: ({ name }) =>
       void controller.run('Creating branch', () => kraft.createBranch(String(name), startPoint), `Created ${name}`)
+  })
+}
+
+export function cherryPickCommit(controller: RepositoryController, commit: Commit): void {
+  const onto = controller.view?.currentBranch ?? 'HEAD'
+  void controller.run('Cherry-picking', () => kraft.cherryPick(commit.sha), `Cherry-picked ${shortSha(commit.sha)} onto ${onto}`)
+}
+
+/** Lets the user pick the branch to merge into, then opens the hosting service's page for the pull request. */
+export function askCreatePullRequest(controller: RepositoryController, branchName: string): void {
+  const view = controller.view
+  const branch = view?.branches.find((candidate) => candidate.name === branchName)
+  if (!view || !branch) return
+  const source = pullRequestSource(branch, view.remotes, view.remoteBranches)
+  if (!source) {
+    controller.notify('error', 'This repository has no remote to open a pull request on')
+    return
+  }
+  const targets = pullRequestTargets(source, view.remotes, view.remoteBranches)
+  if (targets.length === 0) {
+    controller.notify('error', `${source.remote} has no branch that ${branchName} could be merged into`)
+    return
+  }
+  controller.ask({
+    title: 'Create pull request',
+    description:
+      `Opens the page that creates a pull request for ${branchName} in your browser.` +
+      (source.push ? ` ${branchName} is pushed to ${source.remote} first.` : ''),
+    fields: [
+      {
+        name: 'target',
+        label: 'Merge into',
+        type: 'select',
+        initial: defaultPullRequestTarget(branchName, targets, view.gitFlow?.config ?? null) ?? targets[0],
+        options: targets.map((target) => ({ value: target, label: `${source.remote}/${target}` }))
+      }
+    ],
+    confirmLabel: 'Create pull request',
+    onSubmit: ({ target }) =>
+      void controller.run(source.push ? `Pushing ${branchName}` : 'Opening pull request', async () => {
+        const page = await kraft.createPullRequest(branchName, String(target))
+        openInBrowser(page.url)
+        controller.notify('info', `${page.pushed ? `Pushed ${branchName} and opened` : 'Opened'} ${page.service} to finish the pull request`)
+      })
   })
 }
 
@@ -56,6 +103,7 @@ export function showLocalBranchMenu(controller: RepositoryController, event: Mou
             onSelect: () => void controller.run('Rebasing', () => kraft.rebaseCurrentOnto(branch), `Rebased onto ${branch}`)
           }
         ]),
+    ...(view.remotes.length > 0 ? [{ label: `Create pull request from ${branch}`, onSelect: () => askCreatePullRequest(controller, branch) }] : []),
     ...gitFlowFinishItem(controller, branch),
     ...(isCurrent ? [] : [{ label: `Delete ${branch}`, danger: true, onSelect: () => askDeleteBranch(controller, branch) }])
   ]
@@ -74,10 +122,13 @@ export function showRemoteBranchMenu(controller: RepositoryController, event: Mo
   ])
 }
 
-export function showCommitMenu(controller: RepositoryController, event: MouseEvent, sha: string): void {
+export function showCommitMenu(controller: RepositoryController, event: MouseEvent, commit: Commit): void {
+  // Cherry-picking the checked-out commit onto itself would change nothing.
+  const isHead = commit.refs.some((ref) => ref.kind === 'head')
   openMenu(controller, event, [
-    { label: 'Create branch here', onSelect: () => askCreateBranch(controller, sha, sha.slice(0, 7)) },
-    { label: 'Copy commit sha', onSelect: () => void navigator.clipboard.writeText(sha) }
+    { label: 'Create branch here', onSelect: () => askCreateBranch(controller, commit.sha, shortSha(commit.sha)) },
+    ...(isHead ? [] : [{ label: 'Cherry pick commit', onSelect: () => cherryPickCommit(controller, commit) }]),
+    { label: 'Copy commit sha', onSelect: () => void navigator.clipboard.writeText(commit.sha) }
   ])
 }
 

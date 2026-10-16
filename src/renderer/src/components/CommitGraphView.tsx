@@ -141,7 +141,7 @@ function GraphRowView({ controller, row, top, width, selected }: GraphRowViewPro
 
   const { commit } = row
   return (
-    <div className={className} style={style} onClick={select} onContextMenu={(event) => showCommitMenu(controller, event, commit.sha)}>
+    <div className={className} style={style} onClick={select} onContextMenu={(event) => showCommitMenu(controller, event, commit)}>
       <div className="col-refs">
         <RefPills controller={controller} refs={commit.refs} color={color} />
       </div>
