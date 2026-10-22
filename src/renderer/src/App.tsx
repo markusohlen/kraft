@@ -4,6 +4,7 @@ import { CommitPanel } from './components/CommitPanel'
 import { ContextMenu } from './components/ContextMenu'
 import { DiffView } from './components/DiffView'
 import { FormDialog } from './components/FormDialog'
+import { MergeTool } from './components/MergeTool'
 import { RepositoryTabs } from './components/RepositoryTabs'
 import { ScanRepositoriesDialog } from './components/ScanRepositoriesDialog'
 import { ResizeHandle } from './components/ResizeHandle'
@@ -39,7 +40,15 @@ export function App() {
                 <ResizeHandle size={sidebar.size} onResize={sidebar.resize} direction={1} />
               </>
             )}
-            <main className="center">{diff ? <DiffView controller={controller} /> : <CommitGraphView controller={controller} />}</main>
+            <main className="center">
+              {diff?.kind === 'conflict' ? (
+                <MergeTool key={diff.change.path} controller={controller} change={diff.change} />
+              ) : diff ? (
+                <DiffView controller={controller} target={diff} />
+              ) : (
+                <CommitGraphView controller={controller} />
+              )}
+            </main>
             <ResizeHandle size={details.size} onResize={details.resize} direction={-1} />
             <aside className="details">
               {selection?.kind === 'commit' ? (

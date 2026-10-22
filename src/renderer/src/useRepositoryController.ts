@@ -21,10 +21,11 @@ export type Selection =
   | { kind: 'stash'; sha: string }
   | null
 
-export type DiffTarget =
-  | { kind: 'working'; change: FileChange; staged: boolean }
-  | { kind: 'commit'; sha: string; change: FileChange }
-  | null
+/** A file whose changes the diff view shows. */
+export type FileDiffTarget = { kind: 'working'; change: FileChange; staged: boolean } | { kind: 'commit'; sha: string; change: FileChange }
+
+/** What the center pane shows instead of the commit graph: a diff, or the merge tool for a conflicted file. */
+export type DiffTarget = FileDiffTarget | { kind: 'conflict'; change: FileChange } | null
 
 export interface Toast {
   id: number

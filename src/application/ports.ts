@@ -6,6 +6,13 @@ export interface MergeOptions {
   message?: string
 }
 
+/** A conflicted file's three versions; null where that side has no such file (deleted, or added on one side only). */
+export interface ConflictVersions {
+  base: string | null
+  ours: string | null
+  theirs: string | null
+}
+
 export interface CommitAuthor {
   name: string
   email: string
@@ -30,6 +37,22 @@ export interface GitRepository {
   stage(paths: string[]): Promise<void>
   unstage(paths: string[]): Promise<void>
   discard(changes: FileChange[]): Promise<void>
+  /** Removes files from the working tree and the index, as `git rm` does. */
+  remove(paths: string[]): Promise<void>
+  /** Overwrites a file in the working tree. */
+  writeWorkingFile(path: string, content: string): Promise<void>
+  conflictVersions(path: string): Promise<ConflictVersions>
+  /** HEAD's commit; null before the first commit. */
+  headCommit(): Promise<string | null>
+  /** The commit being merged, cherry-picked, reverted or rebased that stopped on conflicts; null when none is. */
+  incomingCommit(): Promise<string | null>
+  /** A local branch `sha` is on, preferring one whose tip it is; null when no branch has it. */
+  branchContaining(sha: string): Promise<string | null>
+  /**
+   * Merges three versions of a text as git would, leaving conflict markers of `markerSize` characters where
+   * they clash, with the base version of each conflict between the two sides (the `diff3` style).
+   */
+  mergeTexts(base: string, ours: string, theirs: string, markerSize: number): Promise<string>
   commit(message: string): Promise<void>
   /**
    * Creates a commit holding the files of `treeOf`, without moving any branch or touching the working

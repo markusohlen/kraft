@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { parseUnifiedDiff, toSplitRows, type DiffLine, type ParsedDiff, type TextSegment } from '../../../domain/diff'
 import { kraft } from '../kraftClient'
 import { usePreference } from '../usePreference'
-import type { RepositoryController } from '../useRepositoryController'
+import type { FileDiffTarget, RepositoryController } from '../useRepositoryController'
 
 type DiffLayout = 'unified' | 'split'
 
@@ -16,8 +16,7 @@ type Row =
   | { kind: 'line'; line: DiffLine; change: number | null; startsChange: boolean }
   | { kind: 'pair'; left: DiffLine | null; right: DiffLine | null; change: number | null; startsChange: boolean }
 
-export function DiffView({ controller }: { controller: RepositoryController }) {
-  const target = controller.diff!
+export function DiffView({ controller, target }: { controller: RepositoryController; target: FileDiffTarget }) {
   const [layout, setLayout] = usePreference<DiffLayout>('kraft.diffLayout', 'split', layouts)
   const [fullFile, setFullFile] = usePreference<boolean>('kraft.diffFullFile', false, fullFileChoices)
   const [diffText, setDiffText] = useState<string | null>(null)
@@ -58,7 +57,7 @@ export function DiffView({ controller }: { controller: RepositoryController }) {
     if (fullFile && changeCount > 0) goToChange(0)
   }, [parsed, fullFile, changeCount, goToChange])
 
-  const subtitle = diffSubtitle(controller)
+  const subtitle = diffSubtitle(controller, target)
 
   return (
     <div className="diff">
@@ -128,8 +127,7 @@ export function DiffView({ controller }: { controller: RepositoryController }) {
   )
 }
 
-function diffSubtitle(controller: RepositoryController): string {
-  const target = controller.diff!
+function diffSubtitle(controller: RepositoryController, target: FileDiffTarget): string {
   if (target.kind === 'working') return target.staged ? 'Staged changes' : 'Unstaged changes'
   const stash = controller.view?.stashes.find((candidate) => candidate.sha === target.sha)
   return stash ? `Stash stash@{${stash.index}}` : `Commit ${target.sha.slice(0, 7)}`

@@ -13,6 +13,7 @@ import {
   pushCurrent,
   rebaseCurrentOnto
 } from './branchOperations'
+import { loadMergeConflict, resolveMergeConflict } from './conflictOperations'
 import {
   finishGitFlowBranch,
   initGitFlow,
@@ -124,6 +125,14 @@ export class KraftService implements KraftApi {
     const repository = this.requireRepository()
     if ((await repository.status()).staged.length === 0) throw new Error('Stage some changes before committing')
     await repository.commit(message)
+  }
+
+  mergeConflict(path: string) {
+    return loadMergeConflict(this.requireRepository(), path)
+  }
+
+  resolveMergeConflict(path: string, content: string | null): Promise<void> {
+    return resolveMergeConflict(this.requireRepository(), path, content)
   }
 
   checkoutBranch(branch: string) {

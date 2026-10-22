@@ -76,6 +76,13 @@ describe('GitCliRepository option-injection hardening', () => {
     await expect(access(join(repo.path, 'external-diff-marker.txt'))).rejects.toThrow()
   })
 
+  it('refuses to write a working file outside the repository', async () => {
+    for (const path of ['../outside.txt', join(repo.path, '..', 'outside.txt'), '']) {
+      await expect(repo.repository.writeWorkingFile(path, 'x')).rejects.toThrow('is not inside the repository')
+    }
+    await expect(access(join(repo.path, '..', 'outside.txt'))).rejects.toThrow()
+  })
+
   it('still works for ordinary refs and commits', async () => {
     const [sha] = (await repo.git('rev-parse', 'HEAD')).split('\n')
     expect(await repo.repository.commitMessage(sha)).toBe('Initial commit')

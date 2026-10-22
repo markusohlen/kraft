@@ -122,6 +122,11 @@ textarea:focus {
   font-weight: 500;
 }
 
+.primary.small {
+  padding: 4px 12px;
+  font-size: 11px;
+}
+
 .danger-button {
   background: var(--danger);
   color: white;
@@ -1460,6 +1465,363 @@ body.resizing-rows * {
 
 .current-change > td:first-child {
   box-shadow: inset 3px 0 0 var(--accent);
+}
+
+/* Merge tool: A (current) and B (incoming) side by side, with what is picked collected in the output below. */
+.merge-tool {
+  --side-a: 34, 170, 204;
+  --side-b: 230, 180, 34;
+  --unresolved: 190, 50, 170;
+}
+
+.merge-title .diff-title {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.merge-warning {
+  color: rgb(var(--side-b));
+}
+
+.merge-sides {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.merge-pane-headers {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-sidebar);
+}
+
+.merge-pane-header {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.merge-pane-header.theirs {
+  border-left: 1px solid var(--border);
+}
+
+.merge-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: 2px solid;
+  border-radius: 2px;
+  font-weight: 700;
+}
+
+.merge-badge.ours,
+.merge-branch.ours {
+  color: rgb(var(--side-a));
+}
+
+.merge-badge.theirs,
+.merge-branch.theirs {
+  color: rgb(var(--side-b));
+}
+
+.merge-branch {
+  font-weight: 700;
+}
+
+.pick-cell {
+  width: 1%;
+  padding: 0 2px 0 6px !important;
+}
+
+.pick-box {
+  display: block;
+  width: 13px;
+  height: 13px;
+  margin: 0;
+}
+
+.merge-line {
+  cursor: pointer;
+  background: var(--row-tint);
+}
+
+.merge-line.ours {
+  --row-tint: rgba(var(--side-a), 0.12);
+}
+
+.merge-line.theirs {
+  --row-tint: rgba(var(--side-b), 0.12);
+}
+
+.merge-line.ours.picked {
+  --row-tint: rgba(var(--side-a), 0.32);
+}
+
+.merge-line.theirs.picked {
+  --row-tint: rgba(var(--side-b), 0.32);
+}
+
+/* The checkbox and line-number columns stay put while the code scrolls sideways beneath them. */
+.merge-pane .pick-cell,
+.merge-pane .line-number {
+  position: sticky;
+  z-index: 1;
+  background: linear-gradient(var(--row-tint, transparent), var(--row-tint, transparent)), var(--bg-graph);
+}
+
+.merge-pane .pick-cell {
+  left: 0;
+  min-width: 22px;
+  padding: 0 3px 0 6px !important;
+}
+
+.merge-pane .line-number {
+  left: 22px;
+}
+
+.merge-line.ours > .line-number {
+  box-shadow: inset 3px 0 0 rgb(var(--side-a));
+}
+
+.merge-line.theirs > .line-number {
+  box-shadow: inset 3px 0 0 rgb(var(--side-b));
+}
+
+.merge-output {
+  flex: 0 0 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--border);
+}
+
+.merge-output-header {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  padding: 6px 12px;
+  background: var(--bg-sidebar);
+  border-bottom: 1px solid var(--border);
+}
+
+.merge-output-title {
+  font-size: 15px;
+}
+
+.merge-output-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--accent);
+  font-size: 13px;
+}
+
+.merge-nav-button {
+  width: 22px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid var(--accent);
+  border-radius: 2px;
+  background: none;
+  color: var(--accent);
+  font-size: 8px;
+}
+
+.merge-nav-button:disabled {
+  opacity: 0.4;
+}
+
+.merge-output-note {
+  text-align: right;
+}
+
+/* A text box over a layer of line colours, with a line-number gutter; all three scroll together. */
+.merge-output-editor {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+  background: var(--bg-app);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 19px;
+}
+
+.merge-output-gutter {
+  flex: 0 0 auto;
+  min-width: 44px;
+  padding: 4px 8px 0 0;
+  overflow: hidden;
+  border-right: 1px solid var(--border);
+  color: var(--text-muted);
+  text-align: right;
+  user-select: none;
+}
+
+.merge-output-code {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* As wide as the longest line, so a line's tint still reaches the edge when scrolled sideways. */
+.merge-output-backdrop {
+  position: absolute;
+  top: 4px;
+  left: 0;
+  width: max-content;
+  min-width: 100%;
+  pointer-events: none;
+}
+
+.merge-output-line {
+  height: 19px;
+  padding: 0 12px;
+  white-space: pre;
+}
+
+.merge-output-line.ours {
+  background: rgba(var(--side-a), 0.25);
+  box-shadow: inset 3px 0 0 rgb(var(--side-a));
+}
+
+.merge-output-line.theirs {
+  background: rgba(var(--side-b), 0.25);
+  box-shadow: inset 3px 0 0 rgb(var(--side-b));
+}
+
+.merge-output-line.unresolved {
+  background: rgba(var(--unresolved), 0.35);
+  box-shadow: inset 3px 0 0 rgb(var(--unresolved));
+}
+
+.merge-output-text {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 4px 12px;
+  border: none;
+  border-radius: 0;
+  resize: none;
+  background: transparent;
+  /* The coloured copy of the text shows through from the layer behind; only the caret and selection are drawn here. */
+  color: transparent;
+  caret-color: var(--text);
+  font: inherit;
+  white-space: pre;
+  overflow: auto;
+}
+
+.merge-output-text::selection {
+  background: rgba(20, 184, 166, 0.35);
+}
+
+.merge-output-text:focus {
+  outline: none;
+}
+
+/* Syntax colours, as Prism names its token kinds. */
+.token-comment,
+.token-prolog,
+.token-doctype,
+.token-cdata {
+  color: #6a9955;
+}
+
+.token-keyword,
+.token-boolean,
+.token-null,
+.token-tag,
+.token-selector,
+.token-important,
+.token-atrule {
+  color: #569cd6;
+}
+
+.token-string,
+.token-char,
+.token-template-string,
+.token-attr-value,
+.token-url {
+  color: #ce9178;
+}
+
+.token-number,
+.token-unit {
+  color: #b5cea8;
+}
+
+.token-function,
+.token-function-variable {
+  color: #dcdcaa;
+}
+
+.token-class-name,
+.token-builtin,
+.token-namespace {
+  color: #4ec9b0;
+}
+
+.token-property,
+.token-attr-name,
+.token-variable,
+.token-parameter,
+.token-key {
+  color: #9cdcfe;
+}
+
+.token-regex,
+.token-constant,
+.token-symbol {
+  color: #d16969;
+}
+
+.token-title,
+.token-bold {
+  font-weight: 700;
+}
+
+.token-italic {
+  font-style: italic;
+}
+
+.merge-one-sided {
+  padding: 16px;
+}
+
+.merge-one-sided-text {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 12px;
+}
+
+.merge-one-sided-buttons {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.merge-preview {
+  margin: 0;
+  padding: 8px 12px;
+  background: var(--bg-app);
+  border: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  overflow: auto;
 }
 
 .diff-body {
