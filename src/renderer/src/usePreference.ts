@@ -7,18 +7,20 @@ export function usePreference<T extends string | boolean>(storageKey: string, in
     return allowed.includes(stored as T) ? (stored as T) : initial
   })
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(value))
-    } catch {
-      // Storage can be unavailable; the choice then simply isn't remembered.
-    }
-  }, [storageKey, value])
+  useEffect(() => writeStored(storageKey, value), [storageKey, value])
 
   return [value, setValue] as const
 }
 
-function readStored(storageKey: string): unknown {
+export function writeStored(storageKey: string, value: unknown): void {
+  try {
+    localStorage.setItem(storageKey, JSON.stringify(value))
+  } catch {
+    // Storage can be unavailable; the choice then simply isn't remembered.
+  }
+}
+
+export function readStored(storageKey: string): unknown {
   try {
     const stored = localStorage.getItem(storageKey)
     return stored === null ? undefined : JSON.parse(stored)

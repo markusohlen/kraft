@@ -3,10 +3,10 @@ import type { AutoStashResult } from '../../application/autoStash'
 import type { JiraSettingsView } from '../../application/jiraApi'
 import type { RepositoryView } from '../../application/kraftApi'
 import { hasUncommittedChanges, type FileChange } from '../../domain/entities'
-import { emptyLibrary, type RepositoryLibrary } from '../../domain/repositoryLibrary'
+import { emptyLibrary, findRepository, type RepositoryLibrary } from '../../domain/repositoryLibrary'
 import { avatarStyles, type AvatarStyle } from './avatars'
 import { kraft } from './kraftClient'
-import { usePreference } from './usePreference'
+import { readStored, usePreference, writeStored } from './usePreference'
 
 export type Selection = { kind: 'wip' } | { kind: 'commit'; sha: string } | { kind: 'stash'; sha: string } | null
 
@@ -54,6 +54,8 @@ export interface ContextMenuRequest {
 }
 
 const toastDurationMs = 6000
+/** The repository that was open when Kraft was closed, reopened on the next start. */
+const lastRepositoryKey = 'kraft.lastRepository'
 
 export function useRepositoryController() {
   const [view, setView] = useState<RepositoryView | null>(null)
@@ -85,11 +87,14 @@ export function useRepositoryController() {
     [dismissToast]
   )
 
-  const loadLibrary = useCallback(async () => {
+  const loadLibrary = useCallback(async (): Promise<RepositoryLibrary | null> => {
     try {
-      setLibrary(await kraft.repositoryLibrary())
+      const loaded = await kraft.repositoryLibrary()
+      setLibrary(loaded)
+      return loaded
     } catch (error) {
       notify('error', `Could not load the saved repositories: ${messageOf(error)}`)
+      return null
     }
   }, [notify])
 
@@ -143,6 +148,7 @@ export function useRepositoryController() {
       try {
         const opened = await kraft.openRepository(path)
         setView(opened)
+        writeStored(lastRepositoryKey, opened.path)
         // Opening saves the repository, which may have added a tab.
         void loadLibrary()
         setDiff(null)
@@ -156,9 +162,18 @@ export function useRepositoryController() {
     [notify, loadLibrary]
   )
 
+  const startedUp = useRef(false)
   useEffect(() => {
-    void loadLibrary()
-  }, [loadLibrary])
+    // Guarded because StrictMode runs effects twice in development, which would open the repository twice.
+    if (startedUp.current) return
+    startedUp.current = true
+    void (async () => {
+      const loaded = await loadLibrary()
+      const lastPath = readStored(lastRepositoryKey)
+      // A repository removed from the tabs since then is not reopened.
+      if (loaded && typeof lastPath === 'string' && findRepository(loaded, lastPath)) await openRepository(lastPath)
+    })()
+  }, [loadLibrary, openRepository])
 
   useEffect(() => {
     kraft.jiraSettings().then(setJira, (error) => notify('error', `Could not load the Jira settings: ${messageOf(error)}`))
