@@ -168,6 +168,21 @@ const COMMANDS = {
     log('clicked', selector)
   },
 
+  /** Drags the first element matching `<css>` by `<dx> <dy>` pixels, e.g. a resize handle. */
+  async drag(args) {
+    const [selector, dx, dy] = args.split(' ')
+    const page = requirePage()
+    const box = await page.locator(selector).first().boundingBox()
+    if (!box) throw new Error(`${selector} is not visible`)
+    const x = box.x + box.width / 2
+    const y = box.y + box.height / 2
+    await page.mouse.move(x, y)
+    await page.mouse.down()
+    await page.mouse.move(x + Number(dx), y + Number(dy), { steps: 10 })
+    await page.mouse.up()
+    log('dragged', selector, 'by', dx, dy)
+  },
+
   /** Picks `value` in the open dialog's select field. */
   async select(value) {
     await requirePage().locator('.modal select').selectOption(value)
