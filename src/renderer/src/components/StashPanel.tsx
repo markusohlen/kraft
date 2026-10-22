@@ -53,6 +53,7 @@ export function StashPanel({ controller, sha }: { controller: RepositoryControll
             changes={details.files}
             isSelected={(change) => controller.diff?.kind === 'commit' && controller.diff.change.path === change.path}
             onOpen={(change) => controller.setDiff({ kind: 'commit', sha, change })}
+            onClose={() => controller.setDiff(null)}
           />
         )}
       </div>

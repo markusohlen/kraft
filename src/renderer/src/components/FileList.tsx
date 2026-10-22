@@ -20,22 +20,25 @@ interface FileListProps {
   changes: FileChange[]
   isSelected: (change: FileChange) => boolean
   onOpen: (change: FileChange) => void
+  /** Called when the file whose diff is open is clicked again. */
+  onClose: () => void
   actions?: FileAction[]
 }
 
-export function FileList({ changes, isSelected, onOpen, actions = [] }: FileListProps) {
+export function FileList({ changes, isSelected, onOpen, onClose, actions = [] }: FileListProps) {
   return (
     <ul className="file-list">
       {changes.map((change) => {
         const separator = change.path.lastIndexOf('/')
         const directory = separator === -1 ? '' : change.path.slice(0, separator + 1)
         const fileName = change.path.slice(separator + 1)
+        const selected = isSelected(change)
         return (
           <li
             key={`${change.status}:${change.path}`}
-            className={`file-item ${isSelected(change) ? 'selected' : ''}`}
+            className={`file-item ${selected ? 'selected' : ''}`}
             title={change.path}
-            onClick={() => onOpen(change)}
+            onClick={() => (selected ? onClose() : onOpen(change))}
           >
             <span className={`file-status ${change.status}`}>{statusLetters[change.status]}</span>
             <span className="file-path">

@@ -82,6 +82,7 @@ export function WorkingTreePanel({ controller }: { controller: RepositoryControl
           changes={unstaged}
           isSelected={(change) => isOpen(change, false)}
           onOpen={(change) => openDiff(change, false)}
+          onClose={() => controller.setDiff(null)}
           actions={[
             { label: 'Discard', title: 'Discard changes', danger: true, onClick: (change) => discard([change]) },
             { label: 'Stage', title: 'Stage file', onClick: (change) => stage([change]) }
@@ -102,6 +103,7 @@ export function WorkingTreePanel({ controller }: { controller: RepositoryControl
           changes={staged}
           isSelected={(change) => isOpen(change, true)}
           onOpen={(change) => openDiff(change, true)}
+          onClose={() => controller.setDiff(null)}
           actions={[{ label: 'Unstage', title: 'Unstage file', onClick: (change) => unstage([change]) }]}
         />
       </div>
