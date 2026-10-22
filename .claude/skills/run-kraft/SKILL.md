@@ -111,6 +111,7 @@ look at them. The driver log is `/tmp/kraft-driver.log` (override with `KRAFT_DR
 | `dblclick-branch <name>` | double-clicks the sidebar branch with that full name (`main`, `upstream/release/1.0`) |
 | `click-text <text>` | clicks the button with exactly that text, else the first containing it |
 | `click <css>` / `select <value>` | clicks an element / picks an option in the open dialog's select |
+| `drag <css> <dx> <dy>` | drags an element by that many pixels, e.g. `drag .row-resize 0 -150` to grow the staged files list |
 | `type <text>` / `press <key>` | keyboard input |
 | `idle` | waits until the busy indicator is gone (an operation finished) |
 | `toasts` | prints the visible notifications |

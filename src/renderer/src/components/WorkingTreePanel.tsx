@@ -2,15 +2,18 @@ import { useState } from 'react'
 import { hasConflicts, type FileChange } from '../../../domain/entities'
 import { findIssueKeys } from '../../../domain/jira'
 import { kraft } from '../kraftClient'
+import { usePanelSize } from '../usePanelSize'
 import type { RepositoryController } from '../useRepositoryController'
 import { FileList } from './FileList'
 import { JiraIssueCard } from './JiraIssues'
+import { ResizeHandle } from './ResizeHandle'
 
 export function WorkingTreePanel({ controller }: { controller: RepositoryController }) {
   const view = controller.view!
   const { staged, unstaged } = view.status
   const [summary, setSummary] = useState('')
   const [description, setDescription] = useState('')
+  const stagedSection = usePanelSize('kraft.stagedFilesHeight', { initial: 200, min: 64, max: 1200 })
   const busy = controller.busyLabel !== null
   const branchIssueKey = controller.jira && view.currentBranch ? findIssueKeys(view.currentBranch, controller.jira.projectKeys)[0] : undefined
 
@@ -64,7 +67,7 @@ export function WorkingTreePanel({ controller }: { controller: RepositoryControl
         )}
       </div>
 
-      <div className="panel-section">
+      <div className="panel-section unstaged-section">
         <div className="panel-section-header">
           <span>Unstaged Files ({unstaged.length})</span>
           {unstaged.length > 0 && (
@@ -90,7 +93,9 @@ export function WorkingTreePanel({ controller }: { controller: RepositoryControl
         />
       </div>
 
-      <div className="panel-section">
+      <ResizeHandle className="row-resize" size={stagedSection.size} onResize={stagedSection.resize} direction={-1} axis="y" />
+
+      <div className="panel-section" style={{ flex: `0 1 ${stagedSection.size}px` }}>
         <div className="panel-section-header">
           <span>Staged Files ({staged.length})</span>
           {staged.length > 0 && (

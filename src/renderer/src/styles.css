@@ -221,6 +221,24 @@ body.resizing * {
   cursor: col-resize !important;
 }
 
+.row-resize {
+  flex: 0 0 6px;
+  margin: -3px 0;
+  position: relative;
+  z-index: 5;
+  cursor: row-resize;
+}
+
+.row-resize:hover {
+  background: var(--accent);
+  opacity: 0.6;
+}
+
+body.resizing-rows,
+body.resizing-rows * {
+  cursor: row-resize !important;
+}
+
 .graph-header > div {
   position: relative;
 }
@@ -1539,9 +1557,16 @@ body.resizing * {
   flex-shrink: 0;
 }
 
+/* Each section keeps its header and about one file row visible however the split is dragged. */
 .working-tree-panel > .panel-section {
   display: flex;
   flex-direction: column;
+  min-height: 64px;
+}
+
+/* Unstaged files take the space the draggable staged section leaves. */
+.working-tree-panel > .unstaged-section {
+  flex: 1 1 0;
 }
 
 .working-tree-panel > .panel-section > .panel-section-header {
