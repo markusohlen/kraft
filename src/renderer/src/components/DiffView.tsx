@@ -1,10 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { parseUnifiedDiff, toSplitRows, type DiffLine, type ParsedDiff, type TextSegment } from '../../../domain/diff'
+import { parseUnifiedDiff, toSplitRows, type DiffLine, type ParsedDiff } from '../../../domain/diff'
+import { highlightDiff, withChangedText } from '../diffHighlight'
 import { kraft } from '../kraftClient'
+import { languageFor, type HighlightedLine } from '../syntaxHighlight'
 import { usePreference } from '../usePreference'
 import type { FileDiffTarget, RepositoryController } from '../useRepositoryController'
 
 type DiffLayout = 'unified' | 'split'
+
+/** The syntax tokens of each line of the diff; empty for files without a known language. */
+type LineHighlights = Map<DiffLine, HighlightedLine>
 
 const layouts: readonly DiffLayout[] = ['unified', 'split']
 const fullFileChoices: readonly boolean[] = [true, false]
@@ -46,6 +51,8 @@ export function DiffView({ controller, target }: { controller: RepositoryControl
   const parsed = useMemo(() => (diffText === null ? null : parseUnifiedDiff(diffText)), [diffText])
   // A whole-file diff is one big hunk, so its header says nothing useful.
   const { rows, changeCount } = useMemo(() => layoutRows(parsed, layout, !fullFile), [parsed, layout, fullFile])
+  const language = languageFor(target.change.path)
+  const highlights = useMemo(() => highlightDiff(parsed?.hunks ?? [], language), [parsed, language])
 
   const goToChange = useCallback((index: number) => {
     setCurrentChange(index)
@@ -60,7 +67,7 @@ export function DiffView({ controller, target }: { controller: RepositoryControl
   const subtitle = diffSubtitle(controller, target)
 
   return (
-    <div className="diff">
+    <div className={`diff ${language ? 'syntax' : ''}`}>
       <div className="diff-header">
         <div className="diff-title">
           <div className="diff-path">{target.change.path}</div>
@@ -121,7 +128,11 @@ export function DiffView({ controller, target }: { controller: RepositoryControl
         {error && <div className="empty-state error-text">{error}</div>}
         {parsed === null && !error && <div className="empty-state">Loading diff…</div>}
         {parsed !== null && rows.length === 0 && <div className="empty-state">No textual changes.</div>}
-        {layout === 'split' ? <SplitTable rows={rows} currentChange={currentChange} /> : <UnifiedTable rows={rows} currentChange={currentChange} />}
+        {layout === 'split' ? (
+          <SplitTable rows={rows} highlights={highlights} currentChange={currentChange} />
+        ) : (
+          <UnifiedTable rows={rows} highlights={highlights} currentChange={currentChange} />
+        )}
       </div>
     </div>
   )
@@ -133,7 +144,7 @@ function diffSubtitle(controller: RepositoryController, target: FileDiffTarget):
   return stash ? `Stash stash@{${stash.index}}` : `Commit ${target.sha.slice(0, 7)}`
 }
 
-function UnifiedTable({ rows, currentChange }: { rows: Row[]; currentChange: number }) {
+function UnifiedTable({ rows, highlights, currentChange }: { rows: Row[]; highlights: LineHighlights; currentChange: number }) {
   return (
     <table className="diff-table">
       <tbody>
@@ -146,7 +157,7 @@ function UnifiedTable({ rows, currentChange }: { rows: Row[]; currentChange: num
               <td className="line-number">{line.oldNumber ?? ''}</td>
               <td className="line-number">{line.newNumber ?? ''}</td>
               <td className="line-text">
-                <Segments segments={line.segments} />
+                <LineText line={line} highlights={highlights} />
               </td>
             </tr>
           )
@@ -160,16 +171,23 @@ function UnifiedTable({ rows, currentChange }: { rows: Row[]; currentChange: num
  * Two panes that scroll sideways on their own but up and down together (they share the diff body's
  * scrollbar), so long lines never wrap and every row stays level with its counterpart.
  */
-function SplitTable({ rows, currentChange }: { rows: Row[]; currentChange: number }) {
+function SplitTable({ rows, highlights, currentChange }: { rows: Row[]; highlights: LineHighlights; currentChange: number }) {
   return (
     <div className="split-panes">
-      <SplitPane rows={rows} currentChange={currentChange} side="old" />
-      <SplitPane rows={rows} currentChange={currentChange} side="new" />
+      <SplitPane rows={rows} highlights={highlights} currentChange={currentChange} side="old" />
+      <SplitPane rows={rows} highlights={highlights} currentChange={currentChange} side="new" />
     </div>
   )
 }
 
-function SplitPane({ rows, currentChange, side }: { rows: Row[]; currentChange: number; side: 'old' | 'new' }) {
+interface SplitPaneProps {
+  rows: Row[]
+  highlights: LineHighlights
+  currentChange: number
+  side: 'old' | 'new'
+}
+
+function SplitPane({ rows, highlights, currentChange, side }: SplitPaneProps) {
   return (
     <div className={`split-pane ${side}`}>
       <table className="diff-table">
@@ -190,7 +208,7 @@ function SplitPane({ rows, currentChange, side }: { rows: Row[]; currentChange: 
                 {...(side === 'old' ? changeStart(row) : {})}
               >
                 <td className="line-number">{(side === 'old' ? line?.oldNumber : line?.newNumber) ?? ''}</td>
-                <td className="line-text">{line ? <Segments segments={line.segments} /> : null}</td>
+                <td className="line-text">{line ? <LineText line={line} highlights={highlights} /> : null}</td>
               </tr>
             )
           })}
@@ -210,19 +228,22 @@ function BannerRow({ row, columns }: { row: { kind: 'hunk'; header: string } | {
   )
 }
 
-function Segments({ segments }: { segments: TextSegment[] }) {
-  if (segments.every((segment) => segment.text === '')) return <>{' '}</>
+/** A line's text, with syntax colours and the exact characters that changed marked. */
+function LineText({ line, highlights }: { line: DiffLine; highlights: LineHighlights }) {
+  if (line.text === '') return <>{' '}</>
+  const tokens = highlights.get(line) ?? [{ text: line.text, kinds: [] }]
   return (
     <>
-      {segments.map((segment, index) =>
-        segment.changed ? (
-          <span key={index} className="changed-text">
-            {segment.text}
+      {withChangedText(tokens, line.segments).map((piece, index) => {
+        const classes = [...piece.kinds.map((kind) => `token-${kind}`), ...(piece.changed ? ['changed-text'] : [])]
+        return classes.length > 0 ? (
+          <span key={index} className={classes.join(' ')}>
+            {piece.text}
           </span>
         ) : (
-          segment.text
+          piece.text
         )
-      )}
+      })}
     </>
   )
 }
