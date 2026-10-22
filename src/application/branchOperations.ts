@@ -1,4 +1,5 @@
 import { hasUncommittedChanges } from '../domain/entities'
+import { splitRemoteBranch } from '../domain/remoteBranch'
 import { autoStashMessages, withAutoStash, type AutoStashResult } from './autoStash'
 import type { GitRepository } from './ports'
 
@@ -7,19 +8,53 @@ export async function checkoutBranch(repository: GitRepository, branch: string):
   return withAutoStash(repository, autoStashMessages.checkout(branch), 'keep', () => repository.checkout(branch))
 }
 
-/** Checks out the local branch for `origin/name`, creating a tracking branch when none exists yet. */
-export async function checkoutRemoteBranch(repository: GitRepository, remoteBranch: string): Promise<AutoStashResult> {
-  const localName = localNameForRemoteBranch(remoteBranch)
-  if (await repository.branchExists(localName)) return checkoutBranch(repository, localName)
-  return withAutoStash(repository, autoStashMessages.checkout(localName), 'keep', () =>
-    repository.checkoutTracking(localName, remoteBranch)
-  )
+export interface RemoteCheckoutResult extends AutoStashResult {
+  /** The local branch that is now checked out. */
+  branch: string
+  /** How many commits the local branch was moved forward to catch up with the remote branch. */
+  fastForwarded: number
+  /** Set when both have commits the other lacks; the local branch is then left as it was. */
+  diverged: { local: number; remote: number } | null
+  /** Why fetching failed; the checkout then used the remote branch as it was last fetched. */
+  fetchError: string | null
 }
 
-export function localNameForRemoteBranch(remoteBranch: string): string {
-  const separator = remoteBranch.indexOf('/')
-  if (separator === -1) throw new Error(`"${remoteBranch}" is not a remote branch`)
-  return remoteBranch.slice(separator + 1)
+/**
+ * Checks out the local branch for a remote branch such as `origin/feature/x`. The branch is fetched
+ * first, so commits pushed since the last fetch are included: a missing local branch is created to
+ * track it, and a local branch that is behind is fast-forwarded. A local branch with commits of its
+ * own is only checked out.
+ */
+export async function checkoutRemoteBranch(repository: GitRepository, remoteBranch: string): Promise<RemoteCheckoutResult> {
+  const name = splitRemoteBranch(remoteBranch, await repository.remotes())
+  if (!name) throw new Error(`"${remoteBranch}" is not a remote branch`)
+  const fetchError = await repository.fetchBranch(name.remote, name.branch).then(
+    () => null,
+    (error: unknown) => firstLine(error)
+  )
+  const branch = name.branch
+  const result: RemoteCheckoutResult = { branch, stashMessage: null, fastForwarded: 0, diverged: null, fetchError }
+
+  if (!(await repository.branchExists(branch))) {
+    const stash = await withAutoStash(repository, autoStashMessages.checkout(branch), 'keep', () =>
+      repository.checkoutTracking(branch, remoteBranch)
+    )
+    return { ...result, ...stash }
+  }
+  const { ahead, behind } = await repository.aheadBehind(branch, remoteBranch)
+  if (behind === 0 || ahead > 0) {
+    const stash = await checkoutBranch(repository, branch)
+    return { ...result, ...stash, diverged: behind > 0 ? { local: ahead, remote: behind } : null }
+  }
+  // Changes made on the checked-out branch stay with it, as for a pull; otherwise they stay stashed, as for a checkout.
+  const stash =
+    (await repository.currentBranch()) === branch
+      ? await withAutoStash(repository, autoStashMessages.pull(branch), 'pop', () => repository.fastForward(remoteBranch))
+      : await withAutoStash(repository, autoStashMessages.checkout(branch), 'keep', async () => {
+          await repository.checkout(branch)
+          await repository.fastForward(remoteBranch)
+        })
+  return { ...result, ...stash, fastForwarded: behind }
 }
 
 export async function createAndCheckoutBranch(
@@ -89,6 +124,11 @@ export async function pushCurrent(repository: GitRepository): Promise<void> {
   const [remote] = await repository.remotes()
   if (!remote) throw new Error('This repository has no remote to push to')
   await repository.push(branchName, remote)
+}
+
+function firstLine(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error)
+  return message.split('\n').find((line) => line.trim()) ?? message
 }
 
 async function requireCurrentBranch(repository: GitRepository): Promise<string> {

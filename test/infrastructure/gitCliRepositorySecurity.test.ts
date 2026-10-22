@@ -26,13 +26,27 @@ describe('GitCliRepository option-injection hardening', () => {
   it('rejects an option-like branch or ref name', async () => {
     await expect(repo.repository.checkout('--output=pwned.txt')).rejects.toThrow('not a valid branch or ref name')
     await expect(repo.repository.checkoutTracking('--foo', 'origin/x')).rejects.toThrow('not a valid branch or ref name')
+    await expect(repo.repository.aheadBehind('--output=pwned.txt', 'main')).rejects.toThrow('not a valid branch or ref name')
   })
 
   it('passes an option-like merge target to git as data, not as an option', async () => {
     // `--end-of-options` makes git try to resolve `--output=…` as a ref and fail, rather than act on an option.
-    const error = await repo.repository.merge('--output=pwned.txt', { noFastForward: false }).catch((e: Error) => e)
-    expect(error).toBeInstanceOf(Error)
-    expect((error as Error).message).not.toContain('not a valid')
+    for (const merge of [
+      () => repo.repository.merge('--output=pwned.txt', { noFastForward: false }),
+      () => repo.repository.fastForward('--output=pwned.txt')
+    ]) {
+      const error = await merge().catch((e: Error) => e)
+      expect(error).toBeInstanceOf(Error)
+      expect((error as Error).message).not.toContain('not a valid')
+    }
+  })
+
+  it('does not run an upload-pack command passed as the remote to fetch', async () => {
+    const marker = join(repo.path, 'upload-pack-marker.txt')
+
+    await expect(repo.repository.fetchBranch(`--upload-pack=echo pwned > "${marker}"`, 'main')).rejects.toThrow()
+
+    await expect(access(marker)).rejects.toThrow()
   })
 
   it('rejects a non-integer stash index', async () => {
