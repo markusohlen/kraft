@@ -127,6 +127,17 @@ describe('JiraService', () => {
     expect(tracker.usedCredentials).toEqual([])
   })
 
+  it('refuses a plain-http address so the token is never sent in the clear', async () => {
+    await expect(service.saveJiraSettings({ ...cloudInput, baseUrl: 'http://jira.example.com' })).rejects.toThrow('https://')
+    expect(tracker.usedCredentials).toEqual([])
+    expect(store.settings).toBeNull()
+  })
+
+  it('allows http only for a local Jira instance', async () => {
+    await service.saveJiraSettings({ ...cloudInput, deployment: 'server', email: '', baseUrl: 'http://localhost:8080' })
+    expect(store.settings?.baseUrl).toBe('http://localhost:8080')
+  })
+
   it('does not need an email for Jira Server', async () => {
     await service.saveJiraSettings({ ...cloudInput, deployment: 'server', email: '' })
     expect(store.settings?.deployment).toBe('server')

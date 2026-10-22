@@ -1,4 +1,7 @@
 import { execFile } from 'node:child_process'
+import { access } from 'node:fs/promises'
+import { constants } from 'node:fs'
+import { delimiter, join } from 'node:path'
 
 export interface GitCommandResult {
   stdout: string
@@ -34,10 +37,40 @@ export class GitCommandError extends Error {
   }
 }
 
-export function runGit(cwd: string, args: string[], options: GitCommandOptions = {}): Promise<GitCommandResult> {
+/**
+ * Git runs with `cwd` set to the (untrusted) repository. Invoking it by the bare name `git` would let
+ * Windows' CreateProcess search that directory before PATH, so a `git.exe` planted in a malicious repo
+ * would run instead of the real one. Resolving an absolute path from PATH up front removes that search.
+ */
+const gitExecutableNames = process.platform === 'win32' ? ['git.exe'] : ['git']
+let resolvedGitPath: Promise<string> | null = null
+
+function resolveGitPath(): Promise<string> {
+  return (resolvedGitPath ??= (async () => {
+    for (const directory of (process.env.PATH ?? '').split(delimiter).filter(Boolean)) {
+      for (const name of gitExecutableNames) {
+        const candidate = join(directory, name)
+        try {
+          await access(candidate, constants.X_OK)
+          return candidate
+        } catch {
+          // Not in this directory; keep looking.
+        }
+      }
+    }
+    throw new Error('Could not find git on PATH. Is Git installed and on PATH?')
+  })().catch((error) => {
+    // Don't cache the failure: Git may be installed later in the session.
+    resolvedGitPath = null
+    throw error
+  }))
+}
+
+export async function runGit(cwd: string, args: string[], options: GitCommandOptions = {}): Promise<GitCommandResult> {
+  const gitPath = await resolveGitPath()
   return new Promise((resolve, reject) => {
     execFile(
-      'git',
+      gitPath,
       args,
       { cwd, env: gitEnvironment, maxBuffer: maxOutputBytes, windowsHide: true },
       (error, stdout, stderr) => {
