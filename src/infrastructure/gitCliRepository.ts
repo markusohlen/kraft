@@ -27,6 +27,12 @@ const notFoundExitCode = 1
  */
 const endOfOptions = '--end-of-options'
 
+/**
+ * `diff.external` and textconv drivers are commands taken from config, which a hostile repository can set.
+ * Kraft parses git's own unified diff, so neither is wanted when producing a patch.
+ */
+const noDiffCommands = ['--no-ext-diff', '--no-textconv']
+
 function assertSha(sha: string): string {
   if (!/^[0-9a-f]{4,64}$/i.test(sha)) throw new Error(`"${sha}" is not a valid commit id`)
   return sha
@@ -89,8 +95,8 @@ export class GitCliRepository implements GitRepository {
   async commitFileDiff(sha: string, path: string, options: DiffOptions): Promise<string> {
     const parent = await this.firstParent(sha)
     return parent
-      ? this.git(['diff', '-M', ...contextArgs(options), endOfOptions, parent, assertSha(sha), '--', path])
-      : this.git(['show', '--format=', ...contextArgs(options), endOfOptions, assertSha(sha), '--', path])
+      ? this.git(['diff', '-M', ...noDiffCommands, ...contextArgs(options), endOfOptions, parent, assertSha(sha), '--', path])
+      : this.git(['show', '--format=', ...noDiffCommands, ...contextArgs(options), endOfOptions, assertSha(sha), '--', path])
   }
 
   async status(): Promise<WorkingTreeStatus> {
@@ -100,7 +106,7 @@ export class GitCliRepository implements GitRepository {
   async workingFileDiff(change: FileChange, staged: boolean, options: DiffOptions): Promise<string> {
     if (change.status === 'untracked') return this.untrackedFileDiff(change.path)
     const paths = change.oldPath ? [change.oldPath, change.path] : [change.path]
-    return this.git(['diff', '-M', ...contextArgs(options), ...(staged ? ['--cached'] : []), '--', ...paths])
+    return this.git(['diff', '-M', ...noDiffCommands, ...contextArgs(options), ...(staged ? ['--cached'] : []), '--', ...paths])
   }
 
   async stage(paths: string[]): Promise<void> {

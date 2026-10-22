@@ -13,7 +13,16 @@ export interface GitCommandOptions {
   acceptedExitCodes?: number[]
 }
 
-const maxOutputBytes = 512 * 1024 * 1024
+const maxOutputMebibytes = 128
+const maxOutputBytes = maxOutputMebibytes * 1024 * 1024
+
+/**
+ * A repository's own config can name commands that git runs during ordinary operations; `core.fsmonitor`,
+ * for one, runs on every `status`. A repository from an untrusted source (a zip, a shared folder) would then
+ * run code just by being opened. Command-line config overrides the repository's, so these switch that off
+ * for every git call Kraft makes. Hooks are left alone: they only run on writes and users rely on them.
+ */
+const hardeningConfig = ['-c', 'core.fsmonitor=false', '-c', 'protocol.ext.allow=never']
 
 const gitEnvironment: NodeJS.ProcessEnv = {
   ...process.env,
@@ -71,9 +80,13 @@ export async function runGit(cwd: string, args: string[], options: GitCommandOpt
   return new Promise((resolve, reject) => {
     execFile(
       gitPath,
-      args,
+      [...hardeningConfig, ...args],
       { cwd, env: gitEnvironment, maxBuffer: maxOutputBytes, windowsHide: true },
       (error, stdout, stderr) => {
+        if (error?.code === 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER') {
+          reject(new Error(`git ${args[0]} produced more than ${maxOutputMebibytes} MiB of output, which is too much to show`))
+          return
+        }
         if (error && typeof error.code !== 'number') {
           // A string code means git could not be started at all (ENOENT when it is not on PATH).
           reject(new Error(`Could not run git: ${error.message}. Is Git installed and on PATH?`))
