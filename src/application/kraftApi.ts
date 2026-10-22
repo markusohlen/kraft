@@ -6,6 +6,7 @@ import type { AutoStashResult } from './autoStash'
 import type { RemoteCheckoutResult } from './branchOperations'
 import type { FinishGitFlowOptions, FinishGitFlowResult } from './gitFlowOperations'
 import type { PullRequestPage } from './pullRequestOperations'
+import type { SquashPlan, SquashResult } from './squashOperations'
 
 export interface RepositoryView {
   path: string
@@ -51,6 +52,9 @@ export interface KraftApi {
   mergeIntoCurrent(branch: string): Promise<AutoStashResult>
   rebaseCurrentOnto(onto: string): Promise<AutoStashResult>
   cherryPick(sha: string): Promise<AutoStashResult>
+  /** Checks that consecutive commits on the checked-out branch can be squashed, before asking for the message. */
+  squashPlan(shas: string[]): Promise<SquashPlan>
+  squashCommits(shas: string[], message: string): Promise<SquashResult>
 
   stash(message: string): Promise<boolean>
   stashPop(index: number): Promise<void>
@@ -88,6 +92,8 @@ export const kraftMethods: readonly KraftMethod[] = [
   'mergeIntoCurrent',
   'rebaseCurrentOnto',
   'cherryPick',
+  'squashPlan',
+  'squashCommits',
   'stash',
   'stashPop',
   'stashApply',

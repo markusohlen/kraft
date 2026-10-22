@@ -7,6 +7,7 @@ import { FormDialog } from './components/FormDialog'
 import { RepositoryTabs } from './components/RepositoryTabs'
 import { ScanRepositoriesDialog } from './components/ScanRepositoriesDialog'
 import { ResizeHandle } from './components/ResizeHandle'
+import { SelectedCommitsPanel } from './components/SelectedCommitsPanel'
 import { SettingsDialog } from './components/SettingsDialog'
 import { StashPanel } from './components/StashPanel'
 import { Sidebar } from './components/Sidebar'
@@ -43,6 +44,8 @@ export function App() {
             <aside className="details">
               {selection?.kind === 'commit' ? (
                 <CommitPanel key={selection.sha} controller={controller} sha={selection.sha} />
+              ) : selection?.kind === 'commits' ? (
+                <SelectedCommitsPanel controller={controller} shas={selection.shas} />
               ) : selection?.kind === 'stash' ? (
                 <StashPanel key={selection.sha} controller={controller} sha={selection.sha} />
               ) : (

@@ -10,9 +10,16 @@ import { kraft } from './kraftClient'
 import { CherryPickPresenter } from './presenters/cherryPickPresenter'
 import { PullRequestPresenter } from './presenters/pullRequestPresenter'
 import { RemoteBranchPresenter } from './presenters/remoteBranchPresenter'
+import { SquashPresenter } from './presenters/squashPresenter'
 import { readStored, usePreference, writeStored } from './usePreference'
 
-export type Selection = { kind: 'wip' } | { kind: 'commit'; sha: string } | { kind: 'stash'; sha: string } | null
+export type Selection =
+  | { kind: 'wip' }
+  | { kind: 'commit'; sha: string }
+  /** Two or more commits picked with shift-click, newest first; `anchor` is where the range started. */
+  | { kind: 'commits'; anchor: string; shas: string[] }
+  | { kind: 'stash'; sha: string }
+  | null
 
 export type DiffTarget =
   | { kind: 'working'; change: FileChange; staged: boolean }
@@ -29,7 +36,7 @@ export interface Toast {
 export interface DialogField {
   name: string
   label: string
-  type: 'text' | 'password' | 'checkbox' | 'select'
+  type: 'text' | 'textarea' | 'password' | 'checkbox' | 'select'
   initial: string | boolean
   placeholder?: string
   /** Choices for a `select` field. */
@@ -151,6 +158,20 @@ export function useRepositoryController() {
     () => ({
       cherryPick: new CherryPickPresenter(kraft, { run, notify }),
       remoteBranch: new RemoteBranchPresenter(kraft, { run, notify }),
+      squash: new SquashPresenter(kraft, {
+        run,
+        notify,
+        selectCommit: (sha) => setSelection({ kind: 'commit', sha }),
+        askMessage: (request, onSubmit) =>
+          setDialog({
+            title: request.title,
+            description: request.description,
+            fields: [{ name: 'message', label: 'Commit message', type: 'textarea', initial: request.initialMessage }],
+            confirmLabel: request.confirmLabel,
+            danger: request.danger,
+            onSubmit: ({ message }) => onSubmit(String(message))
+          })
+      }),
       pullRequest: new PullRequestPresenter(kraft, {
         run,
         notify,

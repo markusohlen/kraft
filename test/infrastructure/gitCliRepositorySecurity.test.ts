@@ -21,6 +21,9 @@ describe('GitCliRepository option-injection hardening', () => {
       'not a valid commit id'
     )
     await expect(repo.repository.cherryPick('--output=pwned.txt', null)).rejects.toThrow('not a valid commit id')
+    const author = { name: 'A', email: 'a@x', date: '2026-01-01T00:00:00Z' }
+    await expect(repo.repository.commitTree('--output=pwned.txt', null, 'm', author)).rejects.toThrow('not a valid commit id')
+    await expect(repo.repository.rebaseOnto('abc1234', '--output=pwned.txt')).rejects.toThrow('not a valid commit id')
   })
 
   it('rejects an option-like branch or ref name', async () => {

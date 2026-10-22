@@ -13,6 +13,7 @@ describe('IPC argument rules', () => {
     expect(() => assertValidArguments('saveJiraColumnFilter', [null])).not.toThrow()
     expect(() => assertValidArguments('moveLibraryEntry', [{ kind: 'folder', id: 'f1' }, { folderId: null, before: null }])).not.toThrow()
     expect(() => assertValidArguments('addRepositories', [['C:/a', 'C:/b'], null])).not.toThrow()
+    expect(() => assertValidArguments('squashCommits', [['abc123', 'def456'], 'Squashed'])).not.toThrow()
   })
 
   it('rejects values of the wrong type', () => {

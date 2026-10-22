@@ -47,6 +47,17 @@ export function FormDialog({ request, onClose }: { request: DialogRequest; onClo
                 ))}
               </select>
             </label>
+          ) : field.type === 'textarea' ? (
+            <label key={field.name} className="text-field">
+              <span>{field.label}</span>
+              <textarea
+                autoFocus={index === 0}
+                rows={8}
+                value={String(values[field.name])}
+                placeholder={field.placeholder}
+                onChange={(event) => setValues({ ...values, [field.name]: event.target.value })}
+              />
+            </label>
           ) : (
             <label key={field.name} className="text-field">
               <span>{field.label}</span>

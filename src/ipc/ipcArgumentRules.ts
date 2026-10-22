@@ -68,6 +68,8 @@ const argumentRules: Record<IpcMethod, readonly Rule[]> = {
   mergeIntoCurrent: [isString],
   rebaseCurrentOnto: [isString],
   cherryPick: [isString],
+  squashPlan: [arrayOf(isString)],
+  squashCommits: [arrayOf(isString), isString],
   stash: [isString],
   stashPop: [isIndex],
   stashApply: [isIndex],
