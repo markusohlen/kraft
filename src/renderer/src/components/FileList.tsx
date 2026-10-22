@@ -1,4 +1,6 @@
+import type { MouseEvent } from 'react'
 import type { FileChange, FileChangeStatus } from '../../../domain/entities'
+import type { SelectionMode } from '../fileSelection'
 
 const statusLetters: Record<FileChangeStatus, string> = {
   added: '+',
@@ -22,10 +24,24 @@ interface FileListProps {
   onOpen: (change: FileChange) => void
   /** Called when the file whose diff is open is clicked again. */
   onClose: () => void
+  /** Ctrl/Cmd- or shift-click; without it those clicks open the file like a plain click. */
+  onSelectMore?: (change: FileChange, mode: SelectionMode) => void
   actions?: FileAction[]
 }
 
-export function FileList({ changes, isSelected, onOpen, onClose, actions = [] }: FileListProps) {
+function selectionMode(event: MouseEvent): SelectionMode | null {
+  if (event.shiftKey) return 'range'
+  return event.ctrlKey || event.metaKey ? 'toggle' : null
+}
+
+export function FileList({ changes, isSelected, onOpen, onClose, onSelectMore, actions = [] }: FileListProps) {
+  const click = (event: MouseEvent, change: FileChange, selected: boolean) => {
+    const mode = selectionMode(event)
+    if (mode && onSelectMore) onSelectMore(change, mode)
+    else if (selected) onClose()
+    else onOpen(change)
+  }
+
   return (
     <ul className="file-list">
       {changes.map((change) => {
@@ -38,7 +54,8 @@ export function FileList({ changes, isSelected, onOpen, onClose, actions = [] }:
             key={`${change.status}:${change.path}`}
             className={`file-item ${selected ? 'selected' : ''}`}
             title={change.path}
-            onClick={() => (selected ? onClose() : onOpen(change))}
+            onMouseDown={(event) => onSelectMore && selectionMode(event) && event.preventDefault()}
+            onClick={(event) => click(event, change, selected)}
           >
             <span className={`file-status ${change.status}`}>{statusLetters[change.status]}</span>
             <span className="file-path">

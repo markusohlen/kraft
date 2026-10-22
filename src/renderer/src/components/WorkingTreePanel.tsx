@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { hasConflicts, type FileChange } from '../../../domain/entities'
 import { findIssueKeys } from '../../../domain/jira'
+import { extendFileSelection, selectFile, type FileSelection, type SelectionMode } from '../fileSelection'
 import { kraft } from '../kraftClient'
 import { usePanelSize } from '../usePanelSize'
 import type { RepositoryController } from '../useRepositoryController'
@@ -13,22 +14,38 @@ export function WorkingTreePanel({ controller }: { controller: RepositoryControl
   const { staged, unstaged } = view.status
   const [summary, setSummary] = useState('')
   const [description, setDescription] = useState('')
+  const [fileSelection, setFileSelection] = useState<FileSelection | null>(null)
   const stagedSection = usePanelSize('kraft.stagedFilesHeight', { initial: 200, min: 64, max: 1200 })
   const busy = controller.busyLabel !== null
   const branchIssueKey = controller.jira && view.currentBranch ? findIssueKeys(view.currentBranch, controller.jira.projectKeys)[0] : undefined
 
-  const openDiff = (change: FileChange, isStaged: boolean) => controller.setDiff({ kind: 'working', change, staged: isStaged })
-  const isOpen = (change: FileChange, isStaged: boolean) => {
-    const diff = controller.diff
-    return diff?.kind === 'working' && diff.staged === isStaged && diff.change.path === change.path
-  }
+  const diff = controller.diff
+  // A diff opened before this panel mounted still counts as the selected file.
+  const selection = fileSelection ?? (diff?.kind === 'working' ? selectFile(diff.staged, diff.change.path) : null)
+  const isSelected = (change: FileChange, isStaged: boolean) => selection?.staged === isStaged && selection.paths.includes(change.path)
+  const selectedUnstaged = unstaged.filter((change) => isSelected(change, false))
+  const selectedStaged = staged.filter((change) => isSelected(change, true))
   const paths = (changes: FileChange[]) => changes.map((change) => change.path)
+
+  const openDiff = (change: FileChange, isStaged: boolean) => {
+    setFileSelection(selectFile(isStaged, change.path))
+    controller.setDiff({ kind: 'working', change, staged: isStaged })
+  }
+  const closeDiff = () => {
+    setFileSelection(null)
+    controller.setDiff(null)
+  }
+  const selectMore = (change: FileChange, isStaged: boolean, list: FileChange[], mode: SelectionMode) => {
+    const next = extendFileSelection(selection, isStaged, paths(list), change.path, mode)
+    setFileSelection(next)
+    if (next?.paths.includes(change.path)) controller.setDiff({ kind: 'working', change, staged: isStaged })
+  }
 
   const stage = (changes: FileChange[]) => void controller.run('Staging', () => kraft.stage(paths(changes)))
   const unstage = (changes: FileChange[]) => void controller.run('Unstaging', () => kraft.unstage(paths(changes)))
   const discard = (changes: FileChange[]) =>
     controller.ask({
-      title: changes.length === 1 ? `Discard changes to ${changes[0].path}?` : `Discard all ${changes.length} unstaged changes?`,
+      title: discardTitle(changes, unstaged.length),
       description: 'This cannot be undone. Untracked files are deleted.',
       fields: [],
       confirmLabel: 'Discard',
@@ -36,9 +53,19 @@ export function WorkingTreePanel({ controller }: { controller: RepositoryControl
       onSubmit: () =>
         void controller.run('Discarding', async () => {
           await kraft.discard(changes)
-          controller.setDiff(null)
+          closeDiff()
         })
     })
+
+  // With several files selected, the section buttons act on those files instead of the whole list.
+  const bulkUnstaged = selectedUnstaged.length > 1
+  const bulkStaged = selectedStaged.length > 1
+  const unstagedTargets = bulkUnstaged ? selectedUnstaged : unstaged
+  const stagedTargets = bulkStaged ? selectedStaged : staged
+  const actOnTargets = (action: (changes: FileChange[]) => void, changes: FileChange[]) => {
+    action(changes)
+    setFileSelection(null)
+  }
 
   const commit = () => {
     const message = description.trim() ? `${summary.trim()}\n\n${description.trim()}` : summary.trim()
@@ -48,7 +75,7 @@ export function WorkingTreePanel({ controller }: { controller: RepositoryControl
         await kraft.commit(message)
         setSummary('')
         setDescription('')
-        controller.setDiff(null)
+        closeDiff()
       },
       'Changes committed'
     )
@@ -72,20 +99,21 @@ export function WorkingTreePanel({ controller }: { controller: RepositoryControl
           <span>Unstaged Files ({unstaged.length})</span>
           {unstaged.length > 0 && (
             <span className="section-buttons">
-              <button className="link-button danger" disabled={busy} onClick={() => discard(unstaged)}>
-                Discard all
+              <button className="link-button danger" disabled={busy} onClick={() => discard(unstagedTargets)}>
+                {bulkUnstaged ? `Discard ${fileCount(unstagedTargets)}` : 'Discard all'}
               </button>
-              <button className="stage-button" disabled={busy} onClick={() => stage(unstaged)}>
-                Stage all changes
+              <button className="stage-button" disabled={busy} onClick={() => actOnTargets(stage, unstagedTargets)}>
+                {bulkUnstaged ? `Stage ${fileCount(unstagedTargets)}` : 'Stage all changes'}
               </button>
             </span>
           )}
         </div>
         <FileList
           changes={unstaged}
-          isSelected={(change) => isOpen(change, false)}
+          isSelected={(change) => isSelected(change, false)}
           onOpen={(change) => openDiff(change, false)}
-          onClose={() => controller.setDiff(null)}
+          onClose={closeDiff}
+          onSelectMore={(change, mode) => selectMore(change, false, unstaged, mode)}
           actions={[
             { label: 'Discard', title: 'Discard changes', danger: true, onClick: (change) => discard([change]) },
             { label: 'Stage', title: 'Stage file', onClick: (change) => stage([change]) }
@@ -99,16 +127,17 @@ export function WorkingTreePanel({ controller }: { controller: RepositoryControl
         <div className="panel-section-header">
           <span>Staged Files ({staged.length})</span>
           {staged.length > 0 && (
-            <button className="unstage-button" disabled={busy} onClick={() => unstage(staged)}>
-              Unstage all changes
+            <button className="unstage-button" disabled={busy} onClick={() => actOnTargets(unstage, stagedTargets)}>
+              {bulkStaged ? `Unstage ${fileCount(stagedTargets)}` : 'Unstage all changes'}
             </button>
           )}
         </div>
         <FileList
           changes={staged}
-          isSelected={(change) => isOpen(change, true)}
+          isSelected={(change) => isSelected(change, true)}
           onOpen={(change) => openDiff(change, true)}
-          onClose={() => controller.setDiff(null)}
+          onClose={closeDiff}
+          onSelectMore={(change, mode) => selectMore(change, true, staged, mode)}
           actions={[{ label: 'Unstage', title: 'Unstage file', onClick: (change) => unstage([change]) }]}
         />
       </div>
@@ -120,9 +149,18 @@ export function WorkingTreePanel({ controller }: { controller: RepositoryControl
         <input className="commit-summary" placeholder="Summary" value={summary} maxLength={200} onChange={(event) => setSummary(event.target.value)} />
         <textarea className="commit-description" placeholder="Description" value={description} onChange={(event) => setDescription(event.target.value)} />
         <button className="primary commit-button" disabled={busy || staged.length === 0 || !summary.trim()} onClick={commit}>
-          {staged.length === 0 ? 'Stage files to commit' : `Commit changes to ${staged.length} file${staged.length === 1 ? '' : 's'}`}
+          {staged.length === 0 ? 'Stage files to commit' : `Commit changes to ${fileCount(staged)}`}
         </button>
       </div>
     </div>
   )
+}
+
+function fileCount(changes: FileChange[]): string {
+  return `${changes.length} file${changes.length === 1 ? '' : 's'}`
+}
+
+function discardTitle(changes: FileChange[], unstagedCount: number): string {
+  if (changes.length === 1) return `Discard changes to ${changes[0].path}?`
+  return changes.length === unstagedCount ? `Discard all ${changes.length} unstaged changes?` : `Discard changes to ${changes.length} files?`
 }
