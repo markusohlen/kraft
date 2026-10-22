@@ -1,5 +1,6 @@
 import type { Branch } from './entities'
 import { mergeTargetsFor, parseGitFlowBranch, type GitFlowConfig } from './gitFlow'
+import { splitRemoteBranch, type RemoteBranchName } from './remoteBranch'
 
 export type HostingService = 'github' | 'gitlab' | 'bitbucket' | 'bitbucket-server' | 'azure-devops'
 
@@ -79,17 +80,6 @@ export function pullRequestUrl(repository: HostedRepository, source: string, tar
     case 'azure-devops':
       return `${webUrl}/pullrequestcreate?${query({ sourceRef: source, targetRef: target })}`
   }
-}
-
-export interface RemoteBranchName {
-  remote: string
-  branch: string
-}
-
-/** Splits `origin/feature/x` into remote and branch; matching against the remotes allows remote names with slashes. */
-export function splitRemoteBranch(remoteBranch: string, remotes: readonly string[]): RemoteBranchName | null {
-  const remote = [...remotes].sort((a, b) => b.length - a.length).find((name) => remoteBranch.startsWith(`${name}/`))
-  return remote ? { remote, branch: remoteBranch.slice(remote.length + 1) } : null
 }
 
 /** Where a pull request for a local branch comes from, and what has to be pushed before it can be opened. */

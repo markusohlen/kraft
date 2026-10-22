@@ -167,6 +167,16 @@ export class GitCliRepository implements GitRepository {
     await this.git(['checkout', '-b', assertRef(localName), '--track', assertRef(remoteBranch)])
   }
 
+  async aheadBehind(branch: string, other: string): Promise<{ ahead: number; behind: number }> {
+    const range = `${assertRef(branch)}...${assertRef(other)}`
+    const [ahead, behind] = (await this.git(['rev-list', '--left-right', '--count', endOfOptions, range])).trim().split(/\s+/)
+    return { ahead: Number(ahead), behind: Number(behind) }
+  }
+
+  async fastForward(target: string): Promise<void> {
+    await this.git(['merge', '--ff-only', endOfOptions, target])
+  }
+
   async createBranch(name: string, startPoint: string): Promise<void> {
     await this.git(['branch', endOfOptions, name, startPoint])
   }
@@ -225,6 +235,11 @@ export class GitCliRepository implements GitRepository {
 
   async fetch(): Promise<void> {
     await this.git(['fetch', '--all', '--prune'])
+  }
+
+  async fetchBranch(remote: string, branch: string): Promise<void> {
+    // Without a destination, git still updates the remote-tracking branch from the remote's fetch refspec.
+    await this.git(['fetch', endOfOptions, remote, `refs/heads/${branch}`])
   }
 
   async pull(): Promise<void> {

@@ -31,6 +31,10 @@ export interface GitRepository {
   branchExists(name: string): Promise<boolean>
   checkout(branch: string): Promise<void>
   checkoutTracking(localName: string, remoteBranch: string): Promise<void>
+  /** Commits only `branch` has (`ahead`) and only `other` has (`behind`). */
+  aheadBehind(branch: string, other: string): Promise<{ ahead: number; behind: number }>
+  /** Moves the checked-out branch forward to `target`; fails unless that is a fast-forward. */
+  fastForward(target: string): Promise<void>
   createBranch(name: string, startPoint: string): Promise<void>
   deleteBranch(name: string, force: boolean): Promise<void>
   merge(branch: string, options: MergeOptions): Promise<void>
@@ -49,6 +53,8 @@ export interface GitRepository {
   stashDrop(index: number): Promise<void>
 
   fetch(): Promise<void>
+  /** Fetches one branch, updating its remote-tracking branch. */
+  fetchBranch(remote: string, branch: string): Promise<void>
   pull(): Promise<void>
   push(branch: string, setUpstreamRemote: string | null): Promise<void>
   /** Pushes a local branch, checked out or not, to `remoteBranch` on `remote` without changing its upstream. */

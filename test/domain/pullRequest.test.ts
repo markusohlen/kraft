@@ -6,9 +6,9 @@ import {
   hostedRepositoryFor,
   pullRequestSource,
   pullRequestTargets,
-  pullRequestUrl,
-  splitRemoteBranch
+  pullRequestUrl
 } from '../../src/domain/pullRequest'
+import { splitRemoteBranch } from '../../src/domain/remoteBranch'
 
 function branch(name: string, upstream: string | null = null, ahead = 0): Branch {
   return { name, sha: 'abc', isCurrent: false, upstream, ahead, behind: 0 }
