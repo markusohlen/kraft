@@ -10,6 +10,9 @@ export interface SecretCipher {
 
 type JiraSettingsFile = Omit<StoredJiraSettings, 'token'> & { encryptedToken: string }
 
+/** Applied when the file is created; on Windows the per-user profile folder already restricts access. */
+const ownerReadWrite = 0o600
+
 /** Keeps the Jira connection in a JSON file with the API token encrypted. */
 export class EncryptedJiraSettingsStore implements JiraSettingsStore {
   constructor(
@@ -37,7 +40,8 @@ export class EncryptedJiraSettingsStore implements JiraSettingsStore {
   async save({ token, ...connection }: StoredJiraSettings): Promise<void> {
     const file: JiraSettingsFile = { ...connection, encryptedToken: this.cipher.encrypt(token) }
     await mkdir(dirname(this.filePath), { recursive: true })
-    await writeFile(this.filePath, JSON.stringify(file, null, 2))
+    // Owner-only: the token is encrypted, but the address and email are still nobody else's business.
+    await writeFile(this.filePath, JSON.stringify(file, null, 2), { mode: ownerReadWrite })
   }
 
   async clear(): Promise<void> {

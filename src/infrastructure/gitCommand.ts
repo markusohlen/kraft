@@ -1,4 +1,7 @@
 import { execFile } from 'node:child_process'
+import { access } from 'node:fs/promises'
+import { constants } from 'node:fs'
+import { delimiter, join } from 'node:path'
 
 export interface GitCommandResult {
   stdout: string
@@ -10,7 +13,16 @@ export interface GitCommandOptions {
   acceptedExitCodes?: number[]
 }
 
-const maxOutputBytes = 512 * 1024 * 1024
+const maxOutputMebibytes = 128
+const maxOutputBytes = maxOutputMebibytes * 1024 * 1024
+
+/**
+ * A repository's own config can name commands that git runs during ordinary operations; `core.fsmonitor`,
+ * for one, runs on every `status`. A repository from an untrusted source (a zip, a shared folder) would then
+ * run code just by being opened. Command-line config overrides the repository's, so these switch that off
+ * for every git call Kraft makes. Hooks are left alone: they only run on writes and users rely on them.
+ */
+const hardeningConfig = ['-c', 'core.fsmonitor=false', '-c', 'protocol.ext.allow=never']
 
 const gitEnvironment: NodeJS.ProcessEnv = {
   ...process.env,
@@ -34,13 +46,47 @@ export class GitCommandError extends Error {
   }
 }
 
-export function runGit(cwd: string, args: string[], options: GitCommandOptions = {}): Promise<GitCommandResult> {
+/**
+ * Git runs with `cwd` set to the (untrusted) repository. Invoking it by the bare name `git` would let
+ * Windows' CreateProcess search that directory before PATH, so a `git.exe` planted in a malicious repo
+ * would run instead of the real one. Resolving an absolute path from PATH up front removes that search.
+ */
+const gitExecutableNames = process.platform === 'win32' ? ['git.exe'] : ['git']
+let resolvedGitPath: Promise<string> | null = null
+
+function resolveGitPath(): Promise<string> {
+  return (resolvedGitPath ??= (async () => {
+    for (const directory of (process.env.PATH ?? '').split(delimiter).filter(Boolean)) {
+      for (const name of gitExecutableNames) {
+        const candidate = join(directory, name)
+        try {
+          await access(candidate, constants.X_OK)
+          return candidate
+        } catch {
+          // Not in this directory; keep looking.
+        }
+      }
+    }
+    throw new Error('Could not find git on PATH. Is Git installed and on PATH?')
+  })().catch((error) => {
+    // Don't cache the failure: Git may be installed later in the session.
+    resolvedGitPath = null
+    throw error
+  }))
+}
+
+export async function runGit(cwd: string, args: string[], options: GitCommandOptions = {}): Promise<GitCommandResult> {
+  const gitPath = await resolveGitPath()
   return new Promise((resolve, reject) => {
     execFile(
-      'git',
-      args,
+      gitPath,
+      [...hardeningConfig, ...args],
       { cwd, env: gitEnvironment, maxBuffer: maxOutputBytes, windowsHide: true },
       (error, stdout, stderr) => {
+        if (error?.code === 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER') {
+          reject(new Error(`git ${args[0]} produced more than ${maxOutputMebibytes} MiB of output, which is too much to show`))
+          return
+        }
         if (error && typeof error.code !== 'number') {
           // A string code means git could not be started at all (ENOENT when it is not on PATH).
           reject(new Error(`Could not run git: ${error.message}. Is Git installed and on PATH?`))

@@ -138,11 +138,19 @@ function validate(credentials: JiraCredentials): JiraCredentials {
   } catch {
     throw new Error(`"${baseUrl}" is not a valid Jira address. Use e.g. https://your-site.atlassian.net`)
   }
-  if (url.protocol !== 'https:' && url.protocol !== 'http:') throw new Error('The Jira address must start with https://')
+  // The API token is sent on every request, so https is required; http would leak it to the network.
+  // http is tolerated only for a local Jira (e.g. a dev instance on localhost) where there is no network hop.
+  if (url.protocol !== 'https:' && !isLocalHttp(url)) {
+    throw new Error('The Jira address must start with https:// (http is only allowed for localhost)')
+  }
   const email = credentials.email.trim()
   if (credentials.deployment === 'cloud' && !email) throw new Error('Jira Cloud needs the email address you sign in with')
   if (!credentials.token) throw new Error('An API token is required')
   return { ...credentials, baseUrl, email }
+}
+
+function isLocalHttp(url: URL): boolean {
+  return url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]', '::1'].includes(url.hostname)
 }
 
 function sameSite(savedBaseUrl: string, newBaseUrl: string): boolean {

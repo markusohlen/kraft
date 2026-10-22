@@ -19,6 +19,40 @@ import {
 /** Exit code git uses for "no" answers such as a missing ref or config key. */
 const notFoundExitCode = 1
 
+/**
+ * `git` treats any argument starting with `-` as an option, so an attacker-controlled SHA or ref such as
+ * `--output=<path>` or `--upload-pack=<cmd>` could write files or run commands. Two defences are applied:
+ * SHAs (which only ever come from the commit graph) are checked to be hex, and `--end-of-options` is
+ * placed before every ref/name/start-point so git reads them as data rather than options (git ≥ 2.24).
+ */
+const endOfOptions = '--end-of-options'
+
+/**
+ * `diff.external` and textconv drivers are commands taken from config, which a hostile repository can set.
+ * Kraft parses git's own unified diff, so neither is wanted when producing a patch.
+ */
+const noDiffCommands = ['--no-ext-diff', '--no-textconv']
+
+function assertSha(sha: string): string {
+  if (!/^[0-9a-f]{4,64}$/i.test(sha)) throw new Error(`"${sha}" is not a valid commit id`)
+  return sha
+}
+
+function assertIndex(index: number): number {
+  if (!Number.isInteger(index) || index < 0) throw new Error(`"${index}" is not a valid stash index`)
+  return index
+}
+
+/**
+ * `git checkout` does not honour `--end-of-options`, so its ref arguments are guarded by rejecting a
+ * leading dash. Git itself refuses to create a branch or ref whose name starts with `-`, so this never
+ * rejects a legitimate ref while still stopping an option such as `--orphan` from being injected.
+ */
+function assertRef(ref: string): string {
+  if (ref.length === 0 || ref.startsWith('-')) throw new Error(`"${ref}" is not a valid branch or ref name`)
+  return ref
+}
+
 export class GitCliRepositoryFactory implements GitRepositoryFactory {
   async open(path: string): Promise<GitRepository> {
     const folder = await stat(path).catch(() => null)
@@ -42,27 +76,27 @@ export class GitCliRepository implements GitRepository {
   }
 
   async commitMessage(sha: string): Promise<string> {
-    return (await this.git(['show', '-s', '--format=%B', sha])).trim()
+    return (await this.git(['show', '-s', '--format=%B', endOfOptions, assertSha(sha)])).trim()
   }
 
   async commitParents(sha: string): Promise<string[]> {
-    const [, ...parents] = (await this.git(['rev-list', '--parents', '-n1', sha])).trim().split(' ')
+    const [, ...parents] = (await this.git(['rev-list', '--parents', '-n1', endOfOptions, assertSha(sha)])).trim().split(' ')
     return parents
   }
 
   async commitFiles(sha: string): Promise<FileChange[]> {
     const parent = await this.firstParent(sha)
     const args = parent
-      ? ['diff', '--name-status', '-z', '-M', parent, sha]
-      : ['diff-tree', '--root', '--no-commit-id', '-r', '--name-status', '-z', '-M', sha]
+      ? ['diff', '--name-status', '-z', '-M', endOfOptions, parent, assertSha(sha)]
+      : ['diff-tree', '--root', '--no-commit-id', '-r', '--name-status', '-z', '-M', endOfOptions, assertSha(sha)]
     return parseNameStatus(await this.git(args))
   }
 
   async commitFileDiff(sha: string, path: string, options: DiffOptions): Promise<string> {
     const parent = await this.firstParent(sha)
     return parent
-      ? this.git(['diff', '-M', ...contextArgs(options), parent, sha, '--', path])
-      : this.git(['show', '--format=', ...contextArgs(options), sha, '--', path])
+      ? this.git(['diff', '-M', ...noDiffCommands, ...contextArgs(options), endOfOptions, parent, assertSha(sha), '--', path])
+      : this.git(['show', '--format=', ...noDiffCommands, ...contextArgs(options), endOfOptions, assertSha(sha), '--', path])
   }
 
   async status(): Promise<WorkingTreeStatus> {
@@ -72,7 +106,7 @@ export class GitCliRepository implements GitRepository {
   async workingFileDiff(change: FileChange, staged: boolean, options: DiffOptions): Promise<string> {
     if (change.status === 'untracked') return this.untrackedFileDiff(change.path)
     const paths = change.oldPath ? [change.oldPath, change.path] : [change.path]
-    return this.git(['diff', '-M', ...contextArgs(options), ...(staged ? ['--cached'] : []), '--', ...paths])
+    return this.git(['diff', '-M', ...noDiffCommands, ...contextArgs(options), ...(staged ? ['--cached'] : []), '--', ...paths])
   }
 
   async stage(paths: string[]): Promise<void> {
@@ -126,32 +160,32 @@ export class GitCliRepository implements GitRepository {
   }
 
   async checkout(branch: string): Promise<void> {
-    await this.git(['checkout', branch, '--'])
+    await this.git(['checkout', assertRef(branch), '--'])
   }
 
   async checkoutTracking(localName: string, remoteBranch: string): Promise<void> {
-    await this.git(['checkout', '-b', localName, '--track', remoteBranch])
+    await this.git(['checkout', '-b', assertRef(localName), '--track', assertRef(remoteBranch)])
   }
 
   async createBranch(name: string, startPoint: string): Promise<void> {
-    await this.git(['branch', name, startPoint])
+    await this.git(['branch', endOfOptions, name, startPoint])
   }
 
   async deleteBranch(name: string, force: boolean): Promise<void> {
-    await this.git(['branch', force ? '-D' : '-d', name])
+    await this.git(['branch', force ? '-D' : '-d', endOfOptions, name])
   }
 
   async merge(branch: string, options: MergeOptions): Promise<void> {
     const message = options.message ? ['-m', options.message] : []
-    await this.git(['merge', options.noFastForward ? '--no-ff' : '--ff', '--no-edit', ...message, branch])
+    await this.git(['merge', options.noFastForward ? '--no-ff' : '--ff', '--no-edit', ...message, endOfOptions, branch])
   }
 
   async rebase(onto: string): Promise<void> {
-    await this.git(['rebase', onto])
+    await this.git(['rebase', endOfOptions, onto])
   }
 
   async cherryPick(sha: string, mainline: number | null): Promise<void> {
-    await this.git(['cherry-pick', ...(mainline === null ? [] : ['-m', String(mainline)]), sha])
+    await this.git(['cherry-pick', ...(mainline === null ? [] : ['-m', String(mainline)]), endOfOptions, assertSha(sha)])
   }
 
   isCherryPickInProgress(): Promise<boolean> {
@@ -163,7 +197,7 @@ export class GitCliRepository implements GitRepository {
   }
 
   async createTag(name: string, message: string): Promise<void> {
-    await this.git(['tag', '-a', name, '-m', message])
+    await this.git(['tag', '-a', '-m', message, endOfOptions, name])
   }
 
   async stashes(): Promise<Stash[]> {
@@ -178,15 +212,15 @@ export class GitCliRepository implements GitRepository {
   }
 
   async stashPop(index: number): Promise<void> {
-    await this.git(['stash', 'pop', `stash@{${index}}`])
+    await this.git(['stash', 'pop', `stash@{${assertIndex(index)}}`])
   }
 
   async stashApply(index: number): Promise<void> {
-    await this.git(['stash', 'apply', `stash@{${index}}`])
+    await this.git(['stash', 'apply', `stash@{${assertIndex(index)}}`])
   }
 
   async stashDrop(index: number): Promise<void> {
-    await this.git(['stash', 'drop', `stash@{${index}}`])
+    await this.git(['stash', 'drop', `stash@{${assertIndex(index)}}`])
   }
 
   async fetch(): Promise<void> {
@@ -198,24 +232,24 @@ export class GitCliRepository implements GitRepository {
   }
 
   async push(branch: string, setUpstreamRemote: string | null): Promise<void> {
-    await this.git(setUpstreamRemote ? ['push', '-u', setUpstreamRemote, branch] : ['push'])
+    await this.git(setUpstreamRemote ? ['push', '-u', endOfOptions, setUpstreamRemote, branch] : ['push'])
   }
 
   async pushBranch(branch: string, remote: string, remoteBranch: string): Promise<void> {
-    await this.git(['push', remote, `refs/heads/${branch}:refs/heads/${remoteBranch}`])
+    await this.git(['push', endOfOptions, remote, `refs/heads/${branch}:refs/heads/${remoteBranch}`])
   }
 
   async remoteUrl(remote: string): Promise<string> {
-    return (await this.git(['remote', 'get-url', remote])).trim()
+    return (await this.git(['remote', 'get-url', endOfOptions, remote])).trim()
   }
 
   async getConfig(key: string): Promise<string | null> {
-    const { stdout, exitCode } = await this.run(['config', '--get', key], { acceptedExitCodes: [notFoundExitCode] })
+    const { stdout, exitCode } = await this.run(['config', '--get', endOfOptions, key], { acceptedExitCodes: [notFoundExitCode] })
     return exitCode === 0 ? stdout.trim() : null
   }
 
   async setConfig(key: string, value: string): Promise<void> {
-    await this.git(['config', '--local', key, value])
+    await this.git(['config', '--local', endOfOptions, key, value])
   }
 
   private async untrackedFileDiff(path: string): Promise<string> {

@@ -3,6 +3,9 @@ import { dirname } from 'node:path'
 import type { RepositoryLibraryStore } from '../application/repositoryLibraryService'
 import { addRepository, emptyLibrary, type LibraryEntry, type RepositoryLibrary, type SavedRepository } from '../domain/repositoryLibrary'
 
+/** Applied when the file is created; on Windows the per-user profile folder already restricts access. */
+const ownerReadWrite = 0o600
+
 /** Keeps the saved repositories and folders in a JSON file. */
 export class JsonRepositoryLibraryStore implements RepositoryLibraryStore {
   constructor(
@@ -20,7 +23,8 @@ export class JsonRepositoryLibraryStore implements RepositoryLibraryStore {
 
   async save(library: RepositoryLibrary): Promise<void> {
     await mkdir(dirname(this.filePath), { recursive: true })
-    await writeFile(this.filePath, JSON.stringify(library, null, 2))
+    // Owner-only, like the Jira settings: the list reveals which projects are on this machine.
+    await writeFile(this.filePath, JSON.stringify(library, null, 2), { mode: ownerReadWrite })
   }
 }
 

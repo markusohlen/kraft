@@ -11,9 +11,19 @@ import { GitCliRepositoryFactory } from '../infrastructure/gitCliRepository'
 import { JiraRestClient } from '../infrastructure/jiraRestClient'
 import { FileSystemRepositoryFinder } from '../infrastructure/fileSystemRepositoryFinder'
 import { JsonRepositoryLibraryStore } from '../infrastructure/jsonRepositoryLibraryStore'
-import { channelFor, type IpcResult } from '../ipc/ipcContract'
+import { assertValidArguments } from '../ipc/ipcArgumentRules'
+import { channelFor, type IpcMethod, type IpcResult } from '../ipc/ipcContract'
+import { createAppUrlMatcher } from './appUrl'
 
 let mainWindow: BrowserWindow | null = null
+
+const isAppUrl = createAppUrlMatcher(process.env.ELECTRON_RENDERER_URL, join(__dirname, '../renderer/index.html'))
+
+/** Only Kraft's own top-level page may call into the main process. */
+function isFromAppPage(event: Electron.IpcMainInvokeEvent): boolean {
+  const frame = event.senderFrame
+  return frame !== null && frame.parent === null && isAppUrl(frame.url)
+}
 
 class DialogFolderPicker implements FolderPicker {
   async chooseFolder(title: string): Promise<string | null> {
@@ -49,11 +59,13 @@ function createJiraService(): JiraService {
   )
 }
 
-function registerIpcHandlers<Service extends object>(service: Service, methods: readonly (keyof Service & string)[]): void {
+function registerIpcHandlers<Service extends object>(service: Service, methods: readonly (keyof Service & IpcMethod)[]): void {
   for (const method of methods) {
     const handler = service[method] as (...args: unknown[]) => Promise<unknown>
-    ipcMain.handle(channelFor(method as Parameters<typeof channelFor>[0]), async (_event, ...args: unknown[]): Promise<IpcResult<unknown>> => {
+    ipcMain.handle(channelFor(method), async (event, ...args: unknown[]): Promise<IpcResult<unknown>> => {
+      if (!isFromAppPage(event)) return { ok: false, error: `Refused ${method}: the request did not come from Kraft's own page` }
       try {
+        assertValidArguments(method, args)
         return { ok: true, value: await handler.apply(service, args) }
       } catch (error) {
         return { ok: false, error: error instanceof Error ? error.message : String(error) }
@@ -82,6 +94,11 @@ function createWindow(): void {
     if (/^https?:\/\//i.test(url)) void shell.openExternal(url)
     return { action: 'deny' }
   })
+  // The page holds the IPC bridge, so it must never be replaced by another page (e.g. a dropped link).
+  mainWindow.webContents.on('will-navigate', (event) => {
+    if (!isAppUrl(event.url)) event.preventDefault()
+  })
+  mainWindow.webContents.on('will-attach-webview', (event) => event.preventDefault())
   if (process.env.ELECTRON_RENDERER_URL) void mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL)
   else void mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   mainWindow.on('closed', () => (mainWindow = null))
