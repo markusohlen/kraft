@@ -1533,6 +1533,26 @@ body.resizing * {
   min-height: 0;
 }
 
+/* Long file lists scroll on their own so they never spill over the commit box. */
+.working-tree-panel > .panel-header,
+.working-tree-panel > .commit-box {
+  flex-shrink: 0;
+}
+
+.working-tree-panel > .panel-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.working-tree-panel > .panel-section > .panel-section-header {
+  flex-shrink: 0;
+}
+
+.working-tree-panel > .panel-section > .file-list {
+  min-height: 0;
+  overflow-y: auto;
+}
+
 .panel-section-header {
   display: flex;
   align-items: center;

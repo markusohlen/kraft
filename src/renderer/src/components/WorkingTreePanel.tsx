@@ -52,7 +52,7 @@ export function WorkingTreePanel({ controller }: { controller: RepositoryControl
   }
 
   return (
-    <div className="panel">
+    <div className="panel working-tree-panel">
       <div className="panel-header">
         <div className="panel-title">
           {staged.length + unstaged.length === 0 ? 'No changes' : `${new Set(paths([...staged, ...unstaged])).size} file changes`}
