@@ -79,7 +79,17 @@ export function showRemoteBranchMenu(controller: RepositoryController, event: Mo
 
 export function showCommitMenu(controller: RepositoryController, event: MouseEvent, commit: Commit): void {
   const view = controller.view
-  const { cherryPick } = controller.presenters
+  const { cherryPick, squash } = controller.presenters
+  const { selection } = controller
+  if (selection?.kind === 'commits' && selection.shas.includes(commit.sha)) {
+    openMenu(controller, event, [
+      ...(squash.canSquash(selection.shas)
+        ? [{ label: `Squash ${selection.shas.length} commits…`, onSelect: () => void squash.start(selection.shas) }]
+        : []),
+      { label: 'Copy commit shas', onSelect: () => void navigator.clipboard.writeText(selection.shas.join('\n')) }
+    ])
+    return
+  }
   openMenu(controller, event, [
     { label: 'Create branch here', onSelect: () => askCreateBranch(controller, commit.sha, shortSha(commit.sha)) },
     ...(view && cherryPick.canCherryPick(commit)

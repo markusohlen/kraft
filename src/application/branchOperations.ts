@@ -131,7 +131,7 @@ function firstLine(error: unknown): string {
   return message.split('\n').find((line) => line.trim()) ?? message
 }
 
-async function requireCurrentBranch(repository: GitRepository): Promise<string> {
+export async function requireCurrentBranch(repository: GitRepository): Promise<string> {
   const branch = await repository.currentBranch()
   if (!branch) throw new Error('No branch is checked out (detached HEAD)')
   return branch

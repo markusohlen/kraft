@@ -11,6 +11,8 @@ export interface GitCommandResult {
 export interface GitCommandOptions {
   /** Exit codes besides 0 that are an answer rather than a failure (e.g. 1 from `show-ref --verify`). */
   acceptedExitCodes?: number[]
+  /** Extra environment variables, such as `GIT_AUTHOR_NAME` for a commit made on someone's behalf. */
+  env?: Record<string, string>
 }
 
 const maxOutputMebibytes = 128
@@ -81,7 +83,7 @@ export async function runGit(cwd: string, args: string[], options: GitCommandOpt
     execFile(
       gitPath,
       [...hardeningConfig, ...args],
-      { cwd, env: gitEnvironment, maxBuffer: maxOutputBytes, windowsHide: true },
+      { cwd, env: { ...gitEnvironment, ...options.env }, maxBuffer: maxOutputBytes, windowsHide: true },
       (error, stdout, stderr) => {
         if (error?.code === 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER') {
           reject(new Error(`git ${args[0]} produced more than ${maxOutputMebibytes} MiB of output, which is too much to show`))

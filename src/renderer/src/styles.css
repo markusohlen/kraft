@@ -1930,6 +1930,28 @@ body.resizing * {
   color: var(--text-muted);
 }
 
+.text-field textarea {
+  resize: vertical;
+}
+
+.selected-commits {
+  list-style: none;
+  margin: 0;
+  padding: 6px 0;
+}
+
+.selected-commit {
+  display: flex;
+  gap: 8px;
+  padding: 3px 14px;
+  white-space: nowrap;
+}
+
+.selected-commit-subject {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .checkbox-field {
   display: flex;
   align-items: center;

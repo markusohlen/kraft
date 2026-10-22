@@ -6,11 +6,20 @@ export interface MergeOptions {
   message?: string
 }
 
+export interface CommitAuthor {
+  name: string
+  email: string
+  /** ISO 8601. */
+  date: string
+}
+
 /** Everything the use cases need from a single Git repository. */
 export interface GitRepository {
   readonly path: string
 
   log(limit: number): Promise<Commit[]>
+  /** HEAD's first-parent history, newest first; empty before the first commit. */
+  firstParentLog(limit: number): Promise<Commit[]>
   commitMessage(sha: string): Promise<string>
   commitParents(sha: string): Promise<string[]>
   commitFiles(sha: string): Promise<FileChange[]>
@@ -22,6 +31,11 @@ export interface GitRepository {
   unstage(paths: string[]): Promise<void>
   discard(changes: FileChange[]): Promise<void>
   commit(message: string): Promise<void>
+  /**
+   * Creates a commit holding the files of `treeOf`, without moving any branch or touching the working
+   * tree, and returns its sha. `parent` null makes it a root commit.
+   */
+  commitTree(treeOf: string, parent: string | null, message: string, author: CommitAuthor): Promise<string>
 
   currentBranch(): Promise<string | null>
   branches(): Promise<Branch[]>
@@ -39,6 +53,10 @@ export interface GitRepository {
   deleteBranch(name: string, force: boolean): Promise<void>
   merge(branch: string, options: MergeOptions): Promise<void>
   rebase(onto: string): Promise<void>
+  /** Replays the checked-out branch's commits after `upstream` onto `newBase`. */
+  rebaseOnto(newBase: string, upstream: string): Promise<void>
+  /** Whether `ancestor` is reachable from `descendant`. */
+  isAncestor(ancestor: string, descendant: string): Promise<boolean>
   /** Commits the changes of `sha` on HEAD; `mainline` is the parent number a merge commit is compared with. */
   cherryPick(sha: string, mainline: number | null): Promise<void>
   isCherryPickInProgress(): Promise<boolean>

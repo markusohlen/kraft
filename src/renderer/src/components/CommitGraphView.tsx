@@ -3,8 +3,9 @@ import { createPortal } from 'react-dom'
 import { rowKey, type GraphRow } from '../../../domain/commitGraph'
 import type { RefLabel } from '../../../domain/entities'
 import { checkoutLocal, checkoutRemote, showCommitMenu, showLocalBranchMenu, showRemoteBranchMenu, showStashMenu } from '../actions'
+import { extendSelection, isSelected, selectionFor } from '../commitSelection'
 import { formatFullDate, formatRelativeDate, laneColor, stashSummary } from '../format'
-import type { RepositoryController, Selection } from '../useRepositoryController'
+import type { RepositoryController } from '../useRepositoryController'
 import { usePanelSize } from '../usePanelSize'
 import { ResizeHandle } from './ResizeHandle'
 import { IssueKeyText } from './JiraIssues'
@@ -42,7 +43,6 @@ export function CommitGraphView({ controller }: { controller: RepositoryControll
   const first = Math.max(0, Math.floor(scrollTop / rowHeight) - overscanRows)
   const last = Math.min(rows.length, Math.ceil((scrollTop + viewportHeight) / rowHeight) + overscanRows)
   const visibleIndexes = Array.from({ length: Math.max(0, last - first) }, (_, index) => first + index)
-  const selectedKey = selectionKey(controller.selection)
 
   return (
     <div className="graph" style={columnWidths}>
@@ -74,7 +74,7 @@ export function CommitGraphView({ controller }: { controller: RepositoryControll
               row={rows[index]}
               top={index * rowHeight}
               width={width}
-              selected={rowKey(rows[index]) === selectedKey}
+              selected={isSelected(controller.selection, rows[index])}
             />
           ))}
         </div>
@@ -99,6 +99,13 @@ function GraphRowView({ controller, row, top, width, selected }: GraphRowViewPro
     controller.setDiff(null)
     controller.setSelection(selectionFor(row))
   }
+  const selectCommit = (event: MouseEvent) => {
+    if (row.kind !== 'commit' || !event.shiftKey) return select()
+    controller.setDiff(null)
+    controller.setSelection((current) => extendSelection(controller.view!.graph.rows, current, row.commit.sha))
+  }
+  // Without this, shift-click also selects the text of every row in between.
+  const keepTextUnselected = (event: MouseEvent) => event.shiftKey && event.preventDefault()
   const className = `graph-row ${row.kind}-row ${selected ? 'selected' : ''}`
 
   if (row.kind === 'work-in-progress') {
@@ -141,7 +148,13 @@ function GraphRowView({ controller, row, top, width, selected }: GraphRowViewPro
 
   const { commit } = row
   return (
-    <div className={className} style={style} onClick={select} onContextMenu={(event) => showCommitMenu(controller, event, commit)}>
+    <div
+      className={className}
+      style={style}
+      onMouseDown={keepTextUnselected}
+      onClick={selectCommit}
+      onContextMenu={(event) => showCommitMenu(controller, event, commit)}
+    >
       <div className="col-refs">
         <RefPills controller={controller} refs={commit.refs} color={color} />
       </div>
@@ -159,18 +172,6 @@ function GraphRowView({ controller, row, top, width, selected }: GraphRowViewPro
       </div>
     </div>
   )
-}
-
-function selectionFor(row: GraphRow): Selection {
-  if (row.kind === 'commit') return { kind: 'commit', sha: row.commit.sha }
-  return row.kind === 'stash' ? { kind: 'stash', sha: row.stash.sha } : { kind: 'wip' }
-}
-
-/** The {@link rowKey} of the selected row. */
-function selectionKey(selection: Selection): string | null {
-  if (!selection) return null
-  if (selection.kind === 'commit') return selection.sha
-  return selection.kind === 'stash' ? `stash:${selection.sha}` : 'work-in-progress'
 }
 
 interface Pill {

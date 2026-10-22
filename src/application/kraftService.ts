@@ -24,6 +24,7 @@ import {
 import type { CommitDetails, KraftApi, RepositoryView } from './kraftApi'
 import type { GitRepository, GitRepositoryFactory } from './ports'
 import { createPullRequest } from './pullRequestOperations'
+import { planSquash, squashCommits } from './squashOperations'
 
 /** How many commits the graph shows; enough for daily work while keeping the view fast. */
 const graphCommitLimit = 1500
@@ -151,6 +152,14 @@ export class KraftService implements KraftApi {
 
   cherryPick(sha: string) {
     return cherryPick(this.requireRepository(), sha)
+  }
+
+  squashPlan(shas: string[]) {
+    return planSquash(this.requireRepository(), shas)
+  }
+
+  squashCommits(shas: string[], message: string) {
+    return squashCommits(this.requireRepository(), shas, message)
   }
 
   stash(message: string): Promise<boolean> {

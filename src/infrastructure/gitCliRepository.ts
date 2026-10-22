@@ -2,7 +2,7 @@ import { readFile, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { DiffOptions } from '../domain/diff'
 import type { Branch, Commit, FileChange, Stash, WorkingTreeStatus } from '../domain/entities'
-import type { GitRepository, GitRepositoryFactory, MergeOptions } from '../application/ports'
+import type { CommitAuthor, GitRepository, GitRepositoryFactory, MergeOptions } from '../application/ports'
 import { runGit, type GitCommandOptions } from './gitCommand'
 import {
   branchFormat,
@@ -75,6 +75,11 @@ export class GitCliRepository implements GitRepository {
     return parseLog(output)
   }
 
+  async firstParentLog(limit: number): Promise<Commit[]> {
+    if (!(await this.refExists('HEAD'))) return []
+    return parseLog(await this.git(['log', '--first-parent', `-n${limit}`, '--decorate=full', `--format=${logFormat}`, 'HEAD']))
+  }
+
   async commitMessage(sha: string): Promise<string> {
     return (await this.git(['show', '-s', '--format=%B', endOfOptions, assertSha(sha)])).trim()
   }
@@ -127,6 +132,13 @@ export class GitCliRepository implements GitRepository {
 
   async commit(message: string): Promise<void> {
     await this.git(['commit', '-m', message])
+  }
+
+  async commitTree(treeOf: string, parent: string | null, message: string, author: CommitAuthor): Promise<string> {
+    const parents = parent === null ? [] : ['-p', assertSha(parent)]
+    const env = { GIT_AUTHOR_NAME: author.name, GIT_AUTHOR_EMAIL: author.email, GIT_AUTHOR_DATE: author.date }
+    const { stdout } = await this.run(['commit-tree', ...parents, '-m', message, `${assertSha(treeOf)}^{tree}`], { env })
+    return stdout.trim()
   }
 
   async currentBranch(): Promise<string | null> {
@@ -192,6 +204,17 @@ export class GitCliRepository implements GitRepository {
 
   async rebase(onto: string): Promise<void> {
     await this.git(['rebase', endOfOptions, onto])
+  }
+
+  async rebaseOnto(newBase: string, upstream: string): Promise<void> {
+    await this.git(['rebase', '--onto', assertSha(newBase), endOfOptions, assertSha(upstream)])
+  }
+
+  async isAncestor(ancestor: string, descendant: string): Promise<boolean> {
+    const { exitCode } = await this.run(['merge-base', '--is-ancestor', endOfOptions, ancestor, descendant], {
+      acceptedExitCodes: [notFoundExitCode]
+    })
+    return exitCode === 0
   }
 
   async cherryPick(sha: string, mainline: number | null): Promise<void> {
