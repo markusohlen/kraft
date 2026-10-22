@@ -61,6 +61,8 @@ const argumentRules: Record<IpcMethod, readonly Rule[]> = {
   unstage: [arrayOf(isString)],
   discard: [arrayOf(fileChange)],
   commit: [isString],
+  mergeConflict: [isString],
+  resolveMergeConflict: [isString, nullable(isString)],
   checkoutBranch: [isString],
   checkoutRemoteBranch: [isString],
   createBranch: [isString, isString],

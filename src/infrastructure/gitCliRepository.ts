@@ -1,8 +1,9 @@
-import { readFile, stat } from 'node:fs/promises'
-import { join } from 'node:path'
+import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { isAbsolute, join, relative, resolve } from 'node:path'
 import type { DiffOptions } from '../domain/diff'
 import type { Branch, Commit, FileChange, Stash, WorkingTreeStatus } from '../domain/entities'
-import type { CommitAuthor, GitRepository, GitRepositoryFactory, MergeOptions } from '../application/ports'
+import type { CommitAuthor, ConflictVersions, GitRepository, GitRepositoryFactory, MergeOptions } from '../application/ports'
 import { runGit, type GitCommandOptions } from './gitCommand'
 import {
   branchFormat,
@@ -18,6 +19,9 @@ import {
 
 /** Exit code git uses for "no" answers such as a missing ref or config key. */
 const notFoundExitCode = 1
+
+const maxReportedMergeConflicts = 127
+const mergeFileConflictCounts = Array.from({ length: maxReportedMergeConflicts }, (_, index) => index + 1)
 
 /**
  * `git` treats any argument starting with `-` as an option, so an attacker-controlled SHA or ref such as
@@ -128,6 +132,59 @@ export class GitCliRepository implements GitRepository {
     const tracked = changes.filter((change) => change.status !== 'untracked').map((change) => change.path)
     if (untracked.length > 0) await this.git(['clean', '-f', '-q', '--', ...untracked])
     if (tracked.length > 0) await this.git(['checkout', '--', ...tracked])
+  }
+
+  async remove(paths: string[]): Promise<void> {
+    await this.git(['rm', '-q', '--', ...paths])
+  }
+
+  async writeWorkingFile(path: string, content: string): Promise<void> {
+    await writeFile(this.pathInside(path), content)
+  }
+
+  async conflictVersions(path: string): Promise<ConflictVersions> {
+    const versions: ConflictVersions = { base: null, ours: null, theirs: null }
+    const stageNames: Record<string, keyof ConflictVersions> = { '1': 'base', '2': 'ours', '3': 'theirs' }
+    for (const entry of (await this.git(['ls-files', '-u', '-z', '--', path])).split('\0').filter(Boolean)) {
+      // "<mode> <sha> <stage>\t<path>"
+      const [, sha, stage] = entry.slice(0, entry.indexOf('\t')).split(' ')
+      versions[stageNames[stage]] = await this.git(['cat-file', 'blob', assertSha(sha)])
+    }
+    return versions
+  }
+
+  async mergeTexts(base: string, ours: string, theirs: string, markerSize: number): Promise<string> {
+    const folder = await mkdtemp(join(tmpdir(), 'kraft-merge-'))
+    try {
+      const files = { ours: join(folder, 'ours'), base: join(folder, 'base'), theirs: join(folder, 'theirs') }
+      await Promise.all([writeFile(files.ours, ours), writeFile(files.base, base), writeFile(files.theirs, theirs)])
+      // merge-file exits with the number of conflicts (capped at 127); only higher codes are failures.
+      const args = ['merge-file', '-p', '--diff3', `--marker-size=${markerSize}`, files.ours, files.base, files.theirs]
+      const { stdout } = await this.run(args, {
+        acceptedExitCodes: mergeFileConflictCounts
+      })
+      return stdout
+    } finally {
+      await rm(folder, { recursive: true, force: true })
+    }
+  }
+
+  headCommit(): Promise<string | null> {
+    return this.resolveRef('HEAD')
+  }
+
+  async incomingCommit(): Promise<string | null> {
+    for (const ref of ['MERGE_HEAD', 'CHERRY_PICK_HEAD', 'REVERT_HEAD', 'REBASE_HEAD']) {
+      const sha = await this.resolveRef(ref)
+      if (sha) return sha
+    }
+    return null
+  }
+
+  async branchContaining(sha: string): Promise<string | null> {
+    const name = (await this.git(['name-rev', '--name-only', '--refs=refs/heads/*', endOfOptions, assertSha(sha)])).trim()
+    // name-rev answers "undefined" for no branch, and "branch~2" or "branch^2" for a commit below its tip.
+    return name === 'undefined' || name === '' ? null : name.replace(/[~^].*$/, '')
   }
 
   async commit(message: string): Promise<void> {
@@ -296,6 +353,14 @@ export class GitCliRepository implements GitRepository {
     const fileLines = content.toString('utf8').replace(/\r?\n$/, '').split(/\r?\n/)
     const body = fileLines.map((line) => `+${line}`).join('\n')
     return `--- /dev/null\n+++ b/${path}\n@@ -0,0 +1,${fileLines.length} @@\n${body}\n`
+  }
+
+  /** The absolute path of a file in the working tree, refusing anything that resolves outside it. */
+  private pathInside(path: string): string {
+    const target = resolve(this.path, path)
+    const fromRoot = relative(this.path, target)
+    if (fromRoot === '' || fromRoot.startsWith('..') || isAbsolute(fromRoot)) throw new Error(`"${path}" is not inside the repository`)
+    return target
   }
 
   private async firstParent(sha: string): Promise<string | null> {

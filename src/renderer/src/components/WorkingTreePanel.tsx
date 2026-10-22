@@ -21,15 +21,20 @@ export function WorkingTreePanel({ controller }: { controller: RepositoryControl
 
   const diff = controller.diff
   // A diff opened before this panel mounted still counts as the selected file.
-  const selection = fileSelection ?? (diff?.kind === 'working' ? selectFile(diff.staged, diff.change.path) : null)
+  const selection =
+    fileSelection ??
+    (diff?.kind === 'working' ? selectFile(diff.staged, diff.change.path) : diff?.kind === 'conflict' ? selectFile(false, diff.change.path) : null)
   const isSelected = (change: FileChange, isStaged: boolean) => selection?.staged === isStaged && selection.paths.includes(change.path)
   const selectedUnstaged = unstaged.filter((change) => isSelected(change, false))
   const selectedStaged = staged.filter((change) => isSelected(change, true))
   const paths = (changes: FileChange[]) => changes.map((change) => change.path)
 
+  // A conflicted file opens in the merge tool, to pick what to keep, rather than in the diff view.
+  const showFile = (change: FileChange, isStaged: boolean) =>
+    controller.setDiff(change.status === 'conflicted' ? { kind: 'conflict', change } : { kind: 'working', change, staged: isStaged })
   const openDiff = (change: FileChange, isStaged: boolean) => {
     setFileSelection(selectFile(isStaged, change.path))
-    controller.setDiff({ kind: 'working', change, staged: isStaged })
+    showFile(change, isStaged)
   }
   const closeDiff = () => {
     setFileSelection(null)
@@ -38,7 +43,7 @@ export function WorkingTreePanel({ controller }: { controller: RepositoryControl
   const selectMore = (change: FileChange, isStaged: boolean, list: FileChange[], mode: SelectionMode) => {
     const next = extendFileSelection(selection, isStaged, paths(list), change.path, mode)
     setFileSelection(next)
-    if (next?.paths.includes(change.path)) controller.setDiff({ kind: 'working', change, staged: isStaged })
+    if (next?.paths.includes(change.path)) showFile(change, isStaged)
   }
 
   const stage = (changes: FileChange[]) => void controller.run('Staging', () => kraft.stage(paths(changes)))
@@ -90,7 +95,9 @@ export function WorkingTreePanel({ controller }: { controller: RepositoryControl
         <div className="muted small">on {view.currentBranch ?? 'detached HEAD'}</div>
         {branchIssueKey && <JiraIssueCard issueKey={branchIssueKey} />}
         {hasConflicts(view.status) && (
-          <div className="conflict-banner">Resolve the conflicted files, stage them, then commit to complete the merge or cherry-pick.</div>
+          <div className="conflict-banner">
+            Click a conflicted file to pick the lines to keep, save it, then commit to complete the merge or cherry-pick.
+          </div>
         )}
       </div>
 

@@ -4,6 +4,7 @@ import type { Branch, FileChange, Stash, WorkingTreeStatus } from '../domain/ent
 import type { GitFlowBranch, GitFlowBranchType, GitFlowConfig } from '../domain/gitFlow'
 import type { AutoStashResult } from './autoStash'
 import type { RemoteCheckoutResult } from './branchOperations'
+import type { MergeConflict } from './conflictOperations'
 import type { FinishGitFlowOptions, FinishGitFlowResult } from './gitFlowOperations'
 import type { PullRequestPage } from './pullRequestOperations'
 import type { SquashPlan, SquashResult } from './squashOperations'
@@ -43,6 +44,9 @@ export interface KraftApi {
   unstage(paths: string[]): Promise<void>
   discard(changes: FileChange[]): Promise<void>
   commit(message: string): Promise<void>
+  mergeConflict(path: string): Promise<MergeConflict>
+  /** Saves and stages a conflicted file's resolved text; `null` resolves it by deleting the file. */
+  resolveMergeConflict(path: string, content: string | null): Promise<void>
 
   checkoutBranch(branch: string): Promise<AutoStashResult>
   /** Fetches the remote branch, then checks out its local branch and fast-forwards it when it is behind. */
@@ -85,6 +89,8 @@ export const kraftMethods: readonly KraftMethod[] = [
   'unstage',
   'discard',
   'commit',
+  'mergeConflict',
+  'resolveMergeConflict',
   'checkoutBranch',
   'checkoutRemoteBranch',
   'createBranch',
