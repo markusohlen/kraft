@@ -1446,7 +1446,8 @@ body.resizing-rows * {
   background: rgba(229, 83, 75, 0.14);
 }
 
-.split-row.removed .line-text {
+/* Without syntax colours, the text itself is tinted too; with them, the row background shows the change. */
+.diff:not(.syntax) .split-row.removed .line-text {
   color: #f6c1bd;
 }
 
@@ -1454,7 +1455,7 @@ body.resizing-rows * {
   background: rgba(76, 192, 106, 0.14);
 }
 
-.split-row.added .line-text {
+.diff:not(.syntax) .split-row.added .line-text {
   color: #b5f0c2;
 }
 
@@ -1855,7 +1856,7 @@ body.resizing-rows * {
   background: rgba(76, 192, 106, 0.14);
 }
 
-.diff-line.added .line-text {
+.diff:not(.syntax) .diff-line.added .line-text {
   color: #b5f0c2;
 }
 
@@ -1863,7 +1864,7 @@ body.resizing-rows * {
   background: rgba(229, 83, 75, 0.14);
 }
 
-.diff-line.removed .line-text {
+.diff:not(.syntax) .diff-line.removed .line-text {
   color: #f6c1bd;
 }
 
