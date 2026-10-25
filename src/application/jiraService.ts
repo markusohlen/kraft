@@ -9,6 +9,7 @@ import {
   type JiraColumnFilter,
   type JiraIssue
 } from '../domain/jira'
+import { isLocalHttp } from '../domain/hostingProvider'
 import type { JiraApi, JiraConnection, JiraSettingsInput, JiraSettingsView } from './jiraApi'
 
 export interface JiraCredentials extends JiraConnection {
@@ -147,10 +148,6 @@ function validate(credentials: JiraCredentials): JiraCredentials {
   if (credentials.deployment === 'cloud' && !email) throw new Error('Jira Cloud needs the email address you sign in with')
   if (!credentials.token) throw new Error('An API token is required')
   return { ...credentials, baseUrl, email }
-}
-
-function isLocalHttp(url: URL): boolean {
-  return url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]', '::1'].includes(url.hostname)
 }
 
 function sameSite(savedBaseUrl: string, newBaseUrl: string): boolean {

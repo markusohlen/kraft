@@ -64,3 +64,54 @@ export function RepositoryIcon() {
     </svg>
   )
 }
+
+/** A globe: cloning from any address. */
+export function GlobeIcon() {
+  return (
+    <svg className="tab-icon" viewBox="0 0 16 16" aria-hidden="true">
+      <circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" strokeWidth="1.3" />
+      <path d="M1.5 8h13M8 1.5c-3.4 3.6-3.4 9.4 0 13M8 1.5c3.4 3.6 3.4 9.4 0 13" fill="none" stroke="currentColor" strokeWidth="1.1" />
+    </svg>
+  )
+}
+
+/** Simplified marks of the hosting services, drawn in the current text color like the other icons. */
+export function GitHubIcon() {
+  return (
+    <svg className="tab-icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path
+        fillRule="evenodd"
+        fill="currentColor"
+        d="M8 .5a7.5 7.5 0 1 0 0 15A7.5 7.5 0 0 0 8 .5zM4.6 7.4c0-.8.3-1.5.8-2l-.1-1.9 1.6.9a4 4 0 0 1 2.2 0l1.6-.9-.1 1.9c.5.5.8 1.2.8 2 0 2-1.4 2.7-2.6 2.9.3.3.5.7.5 1.3v3.6H6.7v-3.6c0-.6.2-1 .5-1.3-1.2-.2-2.6-.9-2.6-2.9z"
+      />
+    </svg>
+  )
+}
+
+export function GitLabIcon() {
+  return (
+    <svg className="tab-icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M8 14.6 1.2 9.6l1.4-7.4 1.8 4.7h7.2l1.8-4.7 1.4 7.4z" fill="currentColor" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+export function BitbucketIcon() {
+  return (
+    <svg className="tab-icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path
+        fillRule="evenodd"
+        fill="currentColor"
+        d="M1.5 2h13l-1.9 11.4a.8.8 0 0 1-.8.6H4.2a.8.8 0 0 1-.8-.6zm4.8 4.2.6 3.6h2.2l.6-3.6z"
+      />
+    </svg>
+  )
+}
+
+export function AzureDevOpsIcon() {
+  return (
+    <svg className="tab-icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path fill="currentColor" d="M15 3.5V12l-3.5 3-5.5-2v2L3 11l9 .7V4.2zM11.5 3.2 6.6.9v1.8L2 4 1 5.4v4.3l1.8.7V5.3z" />
+    </svg>
+  )
+}

@@ -1,16 +1,22 @@
 import { app, BrowserWindow, dialog, ipcMain, safeStorage, shell } from 'electron'
 import { join } from 'node:path'
+import { cloneMethods } from '../application/cloneApi'
+import { CloneService } from '../application/cloneService'
 import { jiraMethods } from '../application/jiraApi'
 import { JiraService } from '../application/jiraService'
 import { kraftMethods } from '../application/kraftApi'
 import { repositoryLibraryMethods } from '../application/repositoryLibraryApi'
 import { RepositoryLibraryService } from '../application/repositoryLibraryService'
 import { KraftService, type FolderPicker } from '../application/kraftService'
-import { EncryptedJiraSettingsStore, type SecretCipher } from '../infrastructure/encryptedJiraSettingsStore'
+import { EncryptedHostingAccountStore } from '../infrastructure/encryptedHostingAccountStore'
+import { EncryptedJiraSettingsStore } from '../infrastructure/encryptedJiraSettingsStore'
+import { GitCliCloner } from '../infrastructure/gitCliCloner'
 import { GitCliRepositoryFactory } from '../infrastructure/gitCliRepository'
+import { HostingApiClient } from '../infrastructure/hostingApiClient'
 import { JiraRestClient } from '../infrastructure/jiraRestClient'
 import { FileSystemRepositoryFinder } from '../infrastructure/fileSystemRepositoryFinder'
 import { JsonRepositoryLibraryStore } from '../infrastructure/jsonRepositoryLibraryStore'
+import type { SecretCipher } from '../infrastructure/secretCipher'
 import { assertValidArguments } from '../ipc/ipcArgumentRules'
 import { channelFor, type IpcMethod, type IpcResult } from '../ipc/ipcContract'
 import { createAppUrlMatcher } from './appUrl'
@@ -35,7 +41,7 @@ class DialogFolderPicker implements FolderPicker {
 
 const safeStorageCipher: SecretCipher = {
   encrypt(plainText) {
-    if (!safeStorage.isEncryptionAvailable()) throw new Error('Secure storage is not available, so the Jira token cannot be saved')
+    if (!safeStorage.isEncryptionAvailable()) throw new Error('Secure storage is not available, so the token cannot be saved')
     return safeStorage.encryptString(plainText).toString('base64')
   },
   decrypt(cipherText) {
@@ -56,6 +62,14 @@ function createJiraService(): JiraService {
   return new JiraService(
     new EncryptedJiraSettingsStore(join(app.getPath('userData'), 'jira.json'), safeStorageCipher),
     new JiraRestClient()
+  )
+}
+
+function createCloneService(): CloneService {
+  return new CloneService(
+    new EncryptedHostingAccountStore(join(app.getPath('userData'), 'hosting-accounts.json'), safeStorageCipher),
+    new HostingApiClient(),
+    new GitCliCloner()
   )
 }
 
@@ -110,6 +124,7 @@ app.whenReady().then(() => {
   registerIpcHandlers(new KraftService(repositories, library, new DialogFolderPicker()), kraftMethods)
   registerIpcHandlers(library, repositoryLibraryMethods)
   registerIpcHandlers(createJiraService(), jiraMethods)
+  registerIpcHandlers(createCloneService(), cloneMethods)
   createWindow()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

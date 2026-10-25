@@ -1,17 +1,9 @@
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import type { JiraSettingsStore, StoredJiraSettings } from '../application/jiraService'
-
-/** Encrypts secrets at rest, e.g. with Electron's safeStorage (Windows DPAPI, macOS Keychain). */
-export interface SecretCipher {
-  encrypt(plainText: string): string
-  decrypt(cipherText: string): string
-}
+import { ownerReadWrite, type SecretCipher } from './secretCipher'
 
 type JiraSettingsFile = Omit<StoredJiraSettings, 'token'> & { encryptedToken: string }
-
-/** Applied when the file is created; on Windows the per-user profile folder already restricts access. */
-const ownerReadWrite = 0o600
 
 /** Keeps the Jira connection in a JSON file with the API token encrypted. */
 export class EncryptedJiraSettingsStore implements JiraSettingsStore {

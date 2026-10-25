@@ -20,6 +20,9 @@ export function Welcome({ controller }: { controller: RepositoryController }) {
           <button className="primary large" onClick={() => void openOtherRepository(controller)}>
             Open a repository
           </button>
+          <button className="secondary large" onClick={controller.openClone}>
+            Clone a repository
+          </button>
           <button className="secondary large" onClick={() => void scanFolderForRepositories(controller)}>
             Scan a folder for repositories
           </button>

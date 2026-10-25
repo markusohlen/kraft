@@ -82,6 +82,7 @@ export function useRepositoryController() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   /** The folder being scanned for repositories, while its dialog is open. */
   const [scanRoot, setScanRoot] = useState<string | null>(null)
+  const [cloneOpen, setCloneOpen] = useState(false)
   /** Hides the branch sidebar while a diff is open, to give the diff more width. */
   const [diffExpanded, setDiffExpanded] = usePreference<boolean>('kraft.diffExpanded', false, [true, false])
   /** Initials by default: profile pictures send a hash of every author's email to gravatar.com. */
@@ -260,6 +261,9 @@ export function useRepositoryController() {
     scanRoot,
     openScan: setScanRoot,
     closeScan: () => setScanRoot(null),
+    cloneOpen,
+    openClone: () => setCloneOpen(true),
+    closeClone: () => setCloneOpen(false),
     diffExpanded,
     setDiffExpanded,
     avatarStyle,

@@ -2451,3 +2451,158 @@ body.resizing-rows * {
   align-items: center;
   gap: 2px;
 }
+
+/* Cloning a repository */
+
+.modal.clone-dialog {
+  width: 900px;
+  height: min(640px, 85vh);
+}
+
+.settings-nav.clone-nav {
+  width: 230px;
+  background: var(--bg-sidebar);
+}
+
+.clone-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.clone-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.clone-form {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  align-items: center;
+  gap: 10px 14px;
+}
+
+.clone-label {
+  justify-self: end;
+  text-align: right;
+}
+
+.clone-form input[type='checkbox'] {
+  justify-self: start;
+  accent-color: var(--accent);
+}
+
+.clone-folder-row {
+  display: flex;
+  gap: 6px;
+}
+
+.clone-folder-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.clone-protocol {
+  justify-self: start;
+  width: 120px;
+}
+
+.clone-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: auto;
+}
+
+.clone-footer button {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.clone-full-path {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+}
+
+.clone-error {
+  user-select: text;
+}
+
+.clone-connect {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.clone-account {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.clone-account-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.clone-repositories {
+  flex: 1;
+  min-height: 120px;
+  overflow-y: auto;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-app);
+}
+
+.clone-repository {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 6px;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  text-align: left;
+}
+
+.clone-repository:hover {
+  background: var(--bg-hover);
+}
+
+.clone-repository.selected {
+  background: var(--bg-selected);
+}
+
+.clone-repository-name {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.clone-repository-description {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.clone-private {
+  font-size: 10px;
+  padding: 0 5px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-muted);
+}

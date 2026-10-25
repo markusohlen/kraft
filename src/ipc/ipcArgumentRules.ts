@@ -1,5 +1,6 @@
 import type { FileChangeStatus } from '../domain/entities'
 import { gitFlowBranchTypes } from '../domain/gitFlow'
+import { hostingProviders } from '../domain/hostingProvider'
 import type { IpcMethod } from './ipcContract'
 
 /**
@@ -48,6 +49,9 @@ const jiraColumnFilter = shape({ boardId: isIndex, boardName: isString, columns:
 const entryRef: Rule = (value) =>
   shape({ kind: oneOf('repository'), path: isString })(value) || shape({ kind: oneOf('folder'), id: isString })(value)
 const libraryDestination = shape({ folderId: nullable(isString), before: nullable(entryRef) })
+const hostingProvider = oneOf(...hostingProviders)
+const hostingAccountInput = shape({ provider: hostingProvider, serverUrl: isString, username: isString, token: isString })
+const cloneOptions = shape({ shallow: isBoolean, sparse: isBoolean })
 
 /** One rule per parameter; a `Record` over every method so a new method cannot be added without rules. */
 const argumentRules: Record<IpcMethod, readonly Rule[]> = {
@@ -103,7 +107,13 @@ const argumentRules: Record<IpcMethod, readonly Rule[]> = {
   removeRepositoryFolder: [isString],
   moveLibraryEntry: [entryRef, libraryDestination],
   scanForRepositories: [isString],
-  addRepositories: [arrayOf(isString), nullable(isString)]
+  addRepositories: [arrayOf(isString), nullable(isString)],
+
+  hostingAccounts: [],
+  connectHostingAccount: [hostingAccountInput],
+  disconnectHostingAccount: [hostingProvider],
+  hostedRepositories: [hostingProvider],
+  cloneRepository: [isString, isString, isString, cloneOptions]
 }
 
 export function assertValidArguments(method: IpcMethod, args: readonly unknown[]): void {

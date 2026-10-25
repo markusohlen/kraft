@@ -1,8 +1,9 @@
+import type { CloneMethod } from '../application/cloneApi'
 import type { JiraMethod } from '../application/jiraApi'
 import type { KraftMethod } from '../application/kraftApi'
 import type { RepositoryLibraryMethod } from '../application/repositoryLibraryApi'
 
-export type IpcMethod = KraftMethod | JiraMethod | RepositoryLibraryMethod
+export type IpcMethod = KraftMethod | JiraMethod | RepositoryLibraryMethod | CloneMethod
 
 /**
  * Errors are returned as values because Electron rewrites messages of errors thrown

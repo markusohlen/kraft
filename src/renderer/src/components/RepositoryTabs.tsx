@@ -63,7 +63,7 @@ export function RepositoryTabs({ controller }: { controller: RepositoryControlle
             </button>
           )
         )}
-        <button className="repo-tab add-tab" title="Open a repository or scan a folder for repositories" onClick={(event) => showAddRepositoryMenu(controller, event)}>
+        <button className="repo-tab add-tab" title="Open, clone or scan for repositories" onClick={(event) => showAddRepositoryMenu(controller, event)}>
           +
         </button>
         <span className="repo-tabs-spacer" />
