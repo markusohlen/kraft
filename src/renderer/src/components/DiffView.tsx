@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { parseUnifiedDiff, toSplitRows, type DiffLine, type ParsedDiff } from '../../../domain/diff'
+import { parseUnifiedDiff, toSplitRows, type DiffLine, type DiffOptions, type ParsedDiff } from '../../../domain/diff'
 import { highlightDiff, withChangedText } from '../diffHighlight'
 import { kraft } from '../kraftClient'
 import { languageFor, type HighlightedLine } from '../syntaxHighlight'
@@ -34,11 +34,7 @@ export function DiffView({ controller, target }: { controller: RepositoryControl
     setDiffText(null)
     setError(null)
     setCurrentChange(-1)
-    const options = { fullFile }
-    const request =
-      target.kind === 'working'
-        ? kraft.workingFileDiff(target.change, target.staged, options)
-        : kraft.commitFileDiff(target.sha, target.change.path, options)
+    const request = requestDiff(target, { fullFile })
     request.then(
       (text) => current && setDiffText(text),
       (failure: Error) => current && setError(failure.message)
@@ -138,10 +134,17 @@ export function DiffView({ controller, target }: { controller: RepositoryControl
   )
 }
 
+function requestDiff(target: FileDiffTarget, options: DiffOptions): Promise<string> {
+  if (target.kind === 'working') return kraft.workingFileDiff(target.change, target.staged, options)
+  if (target.kind === 'stash') return kraft.stashFileDiff(target.sha, target.change, options)
+  return kraft.commitFileDiff(target.sha, target.change.path, options)
+}
+
 function diffSubtitle(controller: RepositoryController, target: FileDiffTarget): string {
   if (target.kind === 'working') return target.staged ? 'Staged changes' : 'Unstaged changes'
+  if (target.kind === 'commit') return `Commit ${target.sha.slice(0, 7)}`
   const stash = controller.view?.stashes.find((candidate) => candidate.sha === target.sha)
-  return stash ? `Stash stash@{${stash.index}}` : `Commit ${target.sha.slice(0, 7)}`
+  return stash ? `Stash stash@{${stash.index}}` : `Stash ${target.sha.slice(0, 7)}`
 }
 
 function UnifiedTable({ rows, highlights, currentChange }: { rows: Row[]; highlights: LineHighlights; currentChange: number }) {

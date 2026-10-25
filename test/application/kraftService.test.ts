@@ -84,6 +84,32 @@ describe('KraftService', () => {
     expect(full).toContain(' line 30')
   })
 
+  it('shows the untracked files a stash took next to its other changes', async () => {
+    await test.write('readme.txt', 'changed\n')
+    await test.write('notes.txt', 'draft\n')
+    await service.openRepository(test.path)
+    await service.stash('Work in progress')
+    const [stash] = (await service.refresh()).stashes
+
+    const details = await service.stashDetails(stash.sha)
+    const [modified, untracked] = details.files
+
+    expect(details.files).toEqual([
+      { path: 'readme.txt', oldPath: null, status: 'modified' },
+      { path: 'notes.txt', oldPath: null, status: 'untracked' }
+    ])
+    expect(await service.stashFileDiff(stash.sha, modified)).toContain('+changed')
+    expect(await service.stashFileDiff(stash.sha, untracked)).toContain('+draft')
+  })
+
+  it('shows a stash without untracked files like a commit', async () => {
+    await test.write('readme.txt', 'changed\n')
+    await test.git('stash', 'push', '-q')
+    const [stash] = (await service.openRepository(test.path)).stashes
+
+    expect((await service.stashDetails(stash.sha)).files).toEqual([{ path: 'readme.txt', oldPath: null, status: 'modified' }])
+  })
+
   it('refuses to commit with nothing staged', async () => {
     await service.openRepository(test.path)
 

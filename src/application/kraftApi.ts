@@ -38,6 +38,8 @@ export interface KraftApi {
 
   commitDetails(sha: string): Promise<CommitDetails>
   commitFileDiff(sha: string, path: string, options?: DiffOptions): Promise<string>
+  stashDetails(sha: string): Promise<CommitDetails>
+  stashFileDiff(sha: string, change: FileChange, options?: DiffOptions): Promise<string>
   workingFileDiff(change: FileChange, staged: boolean, options?: DiffOptions): Promise<string>
 
   stage(paths: string[]): Promise<void>
@@ -84,6 +86,8 @@ export const kraftMethods: readonly KraftMethod[] = [
   'refresh',
   'commitDetails',
   'commitFileDiff',
+  'stashDetails',
+  'stashFileDiff',
   'workingFileDiff',
   'stage',
   'unstage',

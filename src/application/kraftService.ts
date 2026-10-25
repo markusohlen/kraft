@@ -104,6 +104,19 @@ export class KraftService implements KraftApi {
     return this.requireRepository().commitFileDiff(sha, path, options)
   }
 
+  /** A stash's changes, including the untracked files it took, which a plain commit diff leaves out. */
+  async stashDetails(sha: string): Promise<CommitDetails> {
+    const [details, untracked] = await Promise.all([this.commitDetails(sha), this.requireRepository().stashUntrackedFiles(sha)])
+    return { ...details, files: [...details.files, ...untracked] }
+  }
+
+  stashFileDiff(sha: string, change: FileChange, options: DiffOptions = defaultDiffOptions): Promise<string> {
+    const repository = this.requireRepository()
+    return change.status === 'untracked'
+      ? repository.stashUntrackedFileDiff(sha, change.path, options)
+      : repository.commitFileDiff(sha, change.path, options)
+  }
+
   workingFileDiff(change: FileChange, staged: boolean, options: DiffOptions = defaultDiffOptions): Promise<string> {
     return this.requireRepository().workingFileDiff(change, staged, options)
   }
