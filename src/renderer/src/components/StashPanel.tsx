@@ -14,7 +14,7 @@ export function StashPanel({ controller, sha }: { controller: RepositoryControll
   const busy = controller.busyLabel !== null
 
   useEffect(() => {
-    kraft.commitDetails(sha).then(setDetails, (failure: Error) => setError(failure.message))
+    kraft.stashDetails(sha).then(setDetails, (failure: Error) => setError(failure.message))
   }, [sha])
 
   if (!stash) return <div className="panel empty-state">This stash no longer exists.</div>
@@ -51,8 +51,8 @@ export function StashPanel({ controller, sha }: { controller: RepositoryControll
         {details && (
           <FileList
             changes={details.files}
-            isSelected={(change) => controller.diff?.kind === 'commit' && controller.diff.change.path === change.path}
-            onOpen={(change) => controller.setDiff({ kind: 'commit', sha, change })}
+            isSelected={(change) => controller.diff?.kind === 'stash' && controller.diff.change.path === change.path}
+            onOpen={(change) => controller.setDiff({ kind: 'stash', sha, change })}
             onClose={() => controller.setDiff(null)}
           />
         )}

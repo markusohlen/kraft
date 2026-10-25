@@ -39,6 +39,34 @@ export async function gravatarUrl(email: string): Promise<string> {
   return `https://www.gravatar.com/avatar/${hash}?s=${avatarSize}&d=404`
 }
 
+const lightInitials = '#ffffff'
+const darkInitials = '#1b1e25'
+
+/**
+ * The initials color that reads best on an avatar filled with `background` (a `#rrggbb` lane color):
+ * whichever of light or dark text has the higher WCAG contrast ratio, since the palette mixes pale and deep colors.
+ */
+export function initialsColor(background: string): string {
+  const backgroundLuminance = relativeLuminance(background)
+  const contrastWith = (text: string) => contrastRatio(backgroundLuminance, relativeLuminance(text))
+  return contrastWith(lightInitials) >= contrastWith(darkInitials) ? lightInitials : darkInitials
+}
+
+/** WCAG 2 relative luminance of a `#rrggbb` color. */
+function relativeLuminance(hexColor: string): number {
+  const match = /^#([\da-f]{2})([\da-f]{2})([\da-f]{2})$/i.exec(hexColor)
+  if (!match) throw new Error(`"${hexColor}" is not a #rrggbb color`)
+  const [red, green, blue] = match.slice(1).map((channel) => {
+    const value = parseInt(channel, 16) / 255
+    return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4
+  })
+  return 0.2126 * red + 0.7152 * green + 0.0722 * blue
+}
+
+function contrastRatio(first: number, second: number): number {
+  return (Math.max(first, second) + 0.05) / (Math.min(first, second) + 0.05)
+}
+
 /** Shared by every avatar on screen, so rows scrolling in and out don't hash or fetch again. */
 const urlsByEmail = new Map<string, string>()
 /** Images that failed (no picture for that email, or offline); they stay initials for this session. */

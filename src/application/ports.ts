@@ -92,6 +92,9 @@ export interface GitRepository {
   stashPop(index: number): Promise<void>
   stashApply(index: number): Promise<void>
   stashDrop(index: number): Promise<void>
+  /** Files a stash took that git did not track yet; they live apart from its other changes. */
+  stashUntrackedFiles(sha: string): Promise<FileChange[]>
+  stashUntrackedFileDiff(sha: string, path: string, options: DiffOptions): Promise<string>
 
   fetch(): Promise<void>
   /** Fetches one branch, updating its remote-tracking branch. */
