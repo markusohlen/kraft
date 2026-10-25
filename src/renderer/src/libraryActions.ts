@@ -14,7 +14,7 @@ export async function scanFolderForRepositories(controller: RepositoryController
   if (folder) controller.openScan(folder)
 }
 
-/** The tab row's "+" button: open one repository, or add every repository in a folder. */
+/** The tab row's "+" button: open or clone one repository, or add every repository in a folder. */
 export function showAddRepositoryMenu(controller: RepositoryController, event: MouseEvent<HTMLElement>): void {
   const button = event.currentTarget.getBoundingClientRect()
   controller.showMenu({
@@ -22,6 +22,7 @@ export function showAddRepositoryMenu(controller: RepositoryController, event: M
     y: button.bottom,
     items: [
       { label: 'Open repository…', onSelect: () => void openOtherRepository(controller) },
+      { label: 'Clone repository…', onSelect: controller.openClone },
       { label: 'Scan a folder for repositories…', onSelect: () => void scanFolderForRepositories(controller) }
     ]
   })

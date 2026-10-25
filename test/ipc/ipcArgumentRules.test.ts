@@ -14,6 +14,8 @@ describe('IPC argument rules', () => {
     expect(() => assertValidArguments('moveLibraryEntry', [{ kind: 'folder', id: 'f1' }, { folderId: null, before: null }])).not.toThrow()
     expect(() => assertValidArguments('addRepositories', [['C:/a', 'C:/b'], null])).not.toThrow()
     expect(() => assertValidArguments('squashCommits', [['abc123', 'def456'], 'Squashed'])).not.toThrow()
+    expect(() => assertValidArguments('connectHostingAccount', [{ provider: 'azure-devops', serverUrl: 'acme', username: '', token: 't' }])).not.toThrow()
+    expect(() => assertValidArguments('cloneRepository', ['https://x/y.git', 'C:/repos', 'y', { shallow: true, sparse: false }])).not.toThrow()
   })
 
   it('rejects values of the wrong type', () => {
@@ -27,6 +29,8 @@ describe('IPC argument rules', () => {
     expect(() => assertValidArguments('discard', [[{ ...fileChange, status: 'exploded' }]])).toThrow('Invalid arguments')
     expect(() => assertValidArguments('workingFileDiff', [{ path: ['a'] }, false])).toThrow('Invalid arguments')
     expect(() => assertValidArguments('startGitFlowBranch', ['bugfix', 'x'])).toThrow('Invalid arguments')
+    expect(() => assertValidArguments('hostedRepositories', ['gitea'])).toThrow('Invalid arguments')
+    expect(() => assertValidArguments('cloneRepository', ['https://x/y.git', 'C:/repos', 'y', { shallow: 'yes', sparse: false }])).toThrow('Invalid arguments')
     expect(() => assertValidArguments('moveLibraryEntry', [{ kind: 'folder', path: 'C:/a' }, { folderId: null, before: null }])).toThrow(
       'Invalid arguments'
     )

@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react'
 import { CommitGraphView } from './components/CommitGraphView'
+import { CloneRepositoryDialog } from './components/CloneRepositoryDialog'
 import { CommitPanel } from './components/CommitPanel'
 import { ContextMenu } from './components/ContextMenu'
 import { DiffView } from './components/DiffView'
@@ -72,6 +73,7 @@ export function App() {
       {controller.scanRoot && (
         <ScanRepositoriesDialog key={controller.scanRoot} controller={controller} root={controller.scanRoot} onClose={controller.closeScan} />
       )}
+      {controller.cloneOpen && <CloneRepositoryDialog controller={controller} onClose={controller.closeClone} />}
       <Toasts controller={controller} />
       {controller.dialog && <FormDialog request={controller.dialog} onClose={controller.closeDialog} />}
       {controller.contextMenu && <ContextMenu menu={controller.contextMenu} onClose={controller.closeMenu} />}

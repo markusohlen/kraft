@@ -1,11 +1,12 @@
 import { contextBridge, ipcRenderer } from 'electron'
+import { cloneMethods } from '../application/cloneApi'
 import { jiraMethods } from '../application/jiraApi'
 import { kraftMethods } from '../application/kraftApi'
 import { repositoryLibraryMethods } from '../application/repositoryLibraryApi'
 import { channelFor, type IpcResult } from '../ipc/ipcContract'
 
 const api = Object.fromEntries(
-  [...kraftMethods, ...jiraMethods, ...repositoryLibraryMethods].map((method) => [
+  [...kraftMethods, ...jiraMethods, ...repositoryLibraryMethods, ...cloneMethods].map((method) => [
     method,
     async (...args: unknown[]) => {
       const result: IpcResult<unknown> = await ipcRenderer.invoke(channelFor(method), ...args)
