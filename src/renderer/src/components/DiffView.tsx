@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { parseUnifiedDiff, toSplitRows, type DiffLine, type DiffOptions, type ParsedDiff } from '../../../domain/diff'
 import { highlightDiff, withChangedText } from '../diffHighlight'
+import { overviewMarks, type OverviewMarkKind } from '../diffOverview'
 import { kraft } from '../kraftClient'
 import { languageFor, type HighlightedLine } from '../syntaxHighlight'
 import { usePreference } from '../usePreference'
 import type { FileDiffTarget, RepositoryController } from '../useRepositoryController'
+import { ScrollbarChangeMarks } from './ScrollbarChangeMarks'
 
 type DiffLayout = 'unified' | 'split'
 
@@ -47,6 +49,7 @@ export function DiffView({ controller, target }: { controller: RepositoryControl
   const parsed = useMemo(() => (diffText === null ? null : parseUnifiedDiff(diffText)), [diffText])
   // A whole-file diff is one big hunk, so its header says nothing useful.
   const { rows, changeCount } = useMemo(() => layoutRows(parsed, layout, !fullFile), [parsed, layout, fullFile])
+  const marks = useMemo(() => overviewMarks(rows.map(markKind)), [rows])
   const language = languageFor(target.change.path)
   const highlights = useMemo(() => highlightDiff(parsed?.hunks ?? [], language), [parsed, language])
 
@@ -120,15 +123,18 @@ export function DiffView({ controller, target }: { controller: RepositoryControl
           </button>
         </div>
       </div>
-      <div className="diff-body" ref={bodyRef}>
-        {error && <div className="empty-state error-text">{error}</div>}
-        {parsed === null && !error && <div className="empty-state">Loading diff…</div>}
-        {parsed !== null && rows.length === 0 && <div className="empty-state">No textual changes.</div>}
-        {layout === 'split' ? (
-          <SplitTable rows={rows} highlights={highlights} currentChange={currentChange} />
-        ) : (
-          <UnifiedTable rows={rows} highlights={highlights} currentChange={currentChange} />
-        )}
+      <div className="diff-body-frame">
+        <div className="diff-body" ref={bodyRef}>
+          {error && <div className="empty-state error-text">{error}</div>}
+          {parsed === null && !error && <div className="empty-state">Loading diff…</div>}
+          {parsed !== null && rows.length === 0 && <div className="empty-state">No textual changes.</div>}
+          {layout === 'split' ? (
+            <SplitTable rows={rows} highlights={highlights} currentChange={currentChange} />
+          ) : (
+            <UnifiedTable rows={rows} highlights={highlights} currentChange={currentChange} />
+          )}
+        </div>
+        <ScrollbarChangeMarks scrollRef={bodyRef} marks={marks} />
       </div>
     </div>
   )
@@ -249,6 +255,16 @@ function LineText({ line, highlights }: { line: DiffLine; highlights: LineHighli
       })}
     </>
   )
+}
+
+/** How a row shows on the scrollbar: a replaced line (old and new side by side) counts as modified. */
+function markKind(row: Row): OverviewMarkKind | null {
+  if (row.kind === 'line') return row.line.kind === 'added' || row.line.kind === 'removed' ? row.line.kind : null
+  if (row.kind !== 'pair') return null
+  const removed = row.left?.kind === 'removed'
+  const added = row.right?.kind === 'added'
+  if (removed && added) return 'modified'
+  return added ? 'added' : removed ? 'removed' : null
 }
 
 function changeStart(row: { change: number | null; startsChange: boolean }) {
