@@ -1831,6 +1831,67 @@ body.resizing-rows * {
   user-select: text;
 }
 
+/* Holds the diff body and the change marks drawn over its scrollbar. */
+.diff-body-frame {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  position: relative;
+}
+
+.diff-body-frame > .diff-body {
+  min-width: 0;
+}
+
+/* A styled scrollbar has no arrow buttons, so the marks line up with the whole track. */
+.diff-body-frame > .diff-body::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+.diff-body-frame > .diff-body::-webkit-scrollbar-track,
+.diff-body-frame > .diff-body::-webkit-scrollbar-corner {
+  background: var(--bg-sidebar);
+}
+
+.diff-body-frame > .diff-body::-webkit-scrollbar-thumb {
+  background: rgba(215, 218, 224, 0.2);
+  background-clip: padding-box;
+  border: 2px solid transparent;
+  border-radius: 6px;
+}
+
+.diff-body-frame > .diff-body::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(215, 218, 224, 0.32);
+}
+
+.scrollbar-change-marks {
+  position: absolute;
+  top: 0;
+  right: 0;
+  pointer-events: none;
+}
+
+.scrollbar-change-mark {
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  border-radius: 1px;
+  opacity: 0.85;
+}
+
+.scrollbar-change-mark.added {
+  background: var(--added);
+}
+
+.scrollbar-change-mark.removed {
+  background: var(--removed);
+}
+
+.scrollbar-change-mark.modified {
+  background: var(--modified);
+}
+
 .diff-table {
   width: 100%;
   border-collapse: collapse;
