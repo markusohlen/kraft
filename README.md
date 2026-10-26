@@ -11,6 +11,8 @@ A desktop Git client with a commit graph, auto-stash, Gitflow, Jira integration 
 
 Kraft uses the `git` installed on your computer, so your existing config, credentials and SSH keys just work.
 
+Kraft **updates itself** on Windows and as an AppImage on Linux: it checks for a new release when it starts and every few hours, downloads it in the background and installs it when you restart (or click **Restart to update** in the tab bar). **Settings → Updates** shows the version and lets you check now. The macOS build isn't signed yet, so it can't update itself; download new versions from the Releases page.
+
 ## Features
 
 ### Tabs and folders
@@ -69,4 +71,4 @@ Other scripts:
 | `npm run dist` | Build installers for your system into `release/` |
 | `npm run icon` | Render `build/icon.svg` to the `build/icon.png` the installers and window use |
 
-Pushing a tag such as `v0.1.1` builds the installers for Windows, macOS and Linux and attaches them to a GitHub release.
+Pushing a tag such as `v0.1.1` builds the installers for Windows, macOS and Linux and attaches them to a GitHub release, together with the `latest*.yml` files installed copies read to update themselves. Bump `version` in `package.json` to match the tag, or installed copies won't see the release as newer.

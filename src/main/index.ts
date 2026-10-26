@@ -8,8 +8,11 @@ import { JiraService } from '../application/jiraService'
 import { kraftMethods } from '../application/kraftApi'
 import { repositoryLibraryMethods } from '../application/repositoryLibraryApi'
 import { RepositoryLibraryService } from '../application/repositoryLibraryService'
+import { updateMethods, updateStatusChannel } from '../application/updateApi'
+import { UpdateService, type UpdaterAvailability } from '../application/updateService'
 import { KraftService, type FolderPicker } from '../application/kraftService'
 import { EncryptedHostingAccountStore } from '../infrastructure/encryptedHostingAccountStore'
+import { ElectronAppUpdater } from '../infrastructure/electronAppUpdater'
 import { EncryptedJiraSettingsStore } from '../infrastructure/encryptedJiraSettingsStore'
 import { GitCliCloner } from '../infrastructure/gitCliCloner'
 import { GitCliRepositoryFactory } from '../infrastructure/gitCliRepository'
@@ -23,6 +26,10 @@ import { channelFor, type IpcMethod, type IpcResult } from '../ipc/ipcContract'
 import { createAppUrlMatcher } from './appUrl'
 
 let mainWindow: BrowserWindow | null = null
+
+/** Gives the release a moment so startup isn't slowed by the check. */
+const firstUpdateCheckDelayMs = 10_000
+const updateCheckIntervalMs = 4 * 60 * 60 * 1000
 
 const isAppUrl = createAppUrlMatcher(process.env.ELECTRON_RENDERER_URL, join(__dirname, '../renderer/index.html'))
 
@@ -72,6 +79,27 @@ function createCloneService(): CloneService {
     new HostingApiClient(),
     new GitCliCloner()
   )
+}
+
+/** Why this copy of Kraft cannot update itself, if it can't. */
+function updaterAvailability(): UpdaterAvailability {
+  if (!app.isPackaged) return { unsupportedReason: 'Only an installed copy of Kraft updates itself; this one runs from source.' }
+  if (process.platform === 'darwin') {
+    return { unsupportedReason: "The macOS build isn't code-signed, so it can't update itself. Download new versions from the Releases page." }
+  }
+  // electron-updater can only replace an AppImage; other Linux installs are updated by their package manager.
+  if (process.platform === 'linux' && !process.env.APPIMAGE) return { unsupportedReason: 'Only the AppImage of Kraft updates itself.' }
+  return { updater: new ElectronAppUpdater() }
+}
+
+function createUpdateService(): UpdateService {
+  return new UpdateService(app.getVersion(), updaterAvailability(), (view) => mainWindow?.webContents.send(updateStatusChannel, view))
+}
+
+function checkForUpdatesRegularly(updates: UpdateService): void {
+  const check = () => void updates.checkForUpdates()
+  setTimeout(check, firstUpdateCheckDelayMs)
+  setInterval(check, updateCheckIntervalMs)
 }
 
 function registerIpcHandlers<Service extends object>(service: Service, methods: readonly (keyof Service & IpcMethod)[]): void {
@@ -128,7 +156,10 @@ app.whenReady().then(() => {
   registerIpcHandlers(library, repositoryLibraryMethods)
   registerIpcHandlers(createJiraService(), jiraMethods)
   registerIpcHandlers(createCloneService(), cloneMethods)
+  const updates = createUpdateService()
+  registerIpcHandlers(updates, updateMethods)
   createWindow()
+  checkForUpdatesRegularly(updates)
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })

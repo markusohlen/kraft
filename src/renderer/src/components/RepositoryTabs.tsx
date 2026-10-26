@@ -67,6 +67,11 @@ export function RepositoryTabs({ controller }: { controller: RepositoryControlle
           +
         </button>
         <span className="repo-tabs-spacer" />
+        {controller.appUpdate.update?.status.kind === 'ready' && (
+          <button className="update-button" title="Restart Kraft to install the update" onClick={controller.appUpdate.install}>
+            Restart to update to {controller.appUpdate.update.status.version}
+          </button>
+        )}
         <button className="icon-button settings-button" title="Settings" onClick={controller.openSettings}>
           ⚙
         </button>

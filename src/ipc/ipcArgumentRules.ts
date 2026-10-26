@@ -113,7 +113,11 @@ const argumentRules: Record<IpcMethod, readonly Rule[]> = {
   connectHostingAccount: [hostingAccountInput],
   disconnectHostingAccount: [hostingProvider],
   hostedRepositories: [hostingProvider],
-  cloneRepository: [isString, isString, isString, cloneOptions]
+  cloneRepository: [isString, isString, isString, cloneOptions],
+
+  appUpdate: [],
+  checkForUpdates: [],
+  installUpdate: []
 }
 
 export function assertValidArguments(method: IpcMethod, args: readonly unknown[]): void {

@@ -1,4 +1,5 @@
 import { useEffect, useState, type KeyboardEvent } from 'react'
+import { isUpdateUnderway, type UpdateStatus } from '../../../domain/appUpdate'
 import { refOf, type EntryRef, type LocatedRepository, type RepositoryFolder } from '../../../domain/repositoryLibrary'
 import type { AvatarStyle } from '../avatars'
 import { askDisconnectJira, askJiraSettings } from '../jiraActions'
@@ -8,12 +9,13 @@ import type { RepositoryController } from '../useRepositoryController'
 import { FolderIcon, RepositoryIcon } from './Icons'
 import { JiraColumnsDialog } from './JiraColumnsDialog'
 
-type SettingsPage = 'repositories' | 'appearance' | 'jira'
+type SettingsPage = 'repositories' | 'appearance' | 'jira' | 'updates'
 
 const pages: { id: SettingsPage; label: string }[] = [
   { id: 'repositories', label: 'Repositories' },
   { id: 'appearance', label: 'Appearance' },
-  { id: 'jira', label: 'Jira' }
+  { id: 'jira', label: 'Jira' },
+  { id: 'updates', label: 'Updates' }
 ]
 
 const avatarChoices: { style: AvatarStyle; label: string; description: string }[] = [
@@ -62,6 +64,8 @@ export function SettingsDialog({ controller, onClose }: { controller: Repository
                 <RepositoriesPage controller={controller} />
               ) : page === 'appearance' ? (
                 <AppearancePage controller={controller} />
+              ) : page === 'updates' ? (
+                <UpdatesPage controller={controller} />
               ) : (
                 <JiraPage controller={controller} onChooseColumns={() => setChoosingColumns(true)} />
               )}
@@ -263,6 +267,53 @@ function AppearancePage({ controller }: { controller: RepositoryController }) {
       ))}
     </fieldset>
   )
+}
+
+function UpdatesPage({ controller }: { controller: RepositoryController }) {
+  const { update, check, install } = controller.appUpdate
+  if (!update) return <p className="muted">Loading…</p>
+  const { status } = update
+  return (
+    <>
+      <dl className="settings-facts">
+        <dt>Version</dt>
+        <dd>{update.currentVersion}</dd>
+        <dt>Status</dt>
+        <dd>{describeUpdateStatus(status)}</dd>
+      </dl>
+      <p className="muted">Kraft checks for new releases when it starts and every few hours, downloads them in the background and installs them when you restart it.</p>
+      <div>
+        {status.kind === 'ready' ? (
+          <button className="primary" onClick={install}>
+            Restart and update to {status.version}
+          </button>
+        ) : (
+          <button className="secondary" disabled={status.kind === 'unsupported' || isUpdateUnderway(status)} onClick={check}>
+            Check for updates
+          </button>
+        )}
+      </div>
+    </>
+  )
+}
+
+function describeUpdateStatus(status: UpdateStatus): string {
+  switch (status.kind) {
+    case 'unsupported':
+      return status.reason
+    case 'idle':
+      return 'Not checked yet'
+    case 'checking':
+      return 'Checking for updates…'
+    case 'up-to-date':
+      return 'Kraft is up to date'
+    case 'downloading':
+      return `Downloading ${status.version}… ${status.percent}%`
+    case 'ready':
+      return `${status.version} is ready to install`
+    case 'failed':
+      return `The last check failed: ${status.message}`
+  }
 }
 
 function JiraPage({ controller, onChooseColumns }: { controller: RepositoryController; onChooseColumns: () => void }) {

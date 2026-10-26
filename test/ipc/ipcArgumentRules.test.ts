@@ -16,6 +16,7 @@ describe('IPC argument rules', () => {
     expect(() => assertValidArguments('squashCommits', [['abc123', 'def456'], 'Squashed'])).not.toThrow()
     expect(() => assertValidArguments('connectHostingAccount', [{ provider: 'azure-devops', serverUrl: 'acme', username: '', token: 't' }])).not.toThrow()
     expect(() => assertValidArguments('cloneRepository', ['https://x/y.git', 'C:/repos', 'y', { shallow: true, sparse: false }])).not.toThrow()
+    expect(() => assertValidArguments('checkForUpdates', [])).not.toThrow()
   })
 
   it('rejects values of the wrong type', () => {
