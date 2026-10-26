@@ -925,9 +925,23 @@ body.resizing-rows * {
   border-right: 1px solid var(--border);
 }
 
-.sidebar-filter {
+.sidebar-top {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   margin: 8px;
+}
+
+.sidebar-filter {
+  flex: 1;
+  min-width: 0;
   font-size: 12px;
+}
+
+.button-svg {
+  width: 15px;
+  height: 15px;
+  display: block;
 }
 
 .sidebar-scroll {
@@ -2683,4 +2697,82 @@ body.resizing-rows * {
   border: 1px solid var(--border);
   border-radius: 8px;
   color: var(--text-muted);
+}
+
+/* Customize sidebar: the sections in order, each draggable. */
+.modal.sidebar-layout-dialog {
+  width: 460px;
+  max-width: calc(100vw - 32px);
+}
+
+.layout-sections {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.layout-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  background: var(--bg-panel);
+  cursor: grab;
+}
+
+.layout-section + .layout-section {
+  border-top: 1px solid var(--border);
+}
+
+.layout-section.dragging {
+  opacity: 0.4;
+}
+
+.layout-section .checkbox-field {
+  flex: 1;
+}
+
+.drag-handle {
+  color: var(--text-muted);
+}
+
+.layout-templates {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--text);
+}
+
+.layout-templates li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.template-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.template-save {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.template-save input {
+  flex: 1;
+  min-width: 0;
+}
+
+.text-field .checkbox-field {
+  color: var(--text);
 }

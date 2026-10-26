@@ -115,3 +115,15 @@ export function AzureDevOpsIcon() {
     </svg>
   )
 }
+
+/** Three sliders: arrange or customize what is shown. */
+export function SlidersIcon() {
+  return (
+    <svg className="button-svg" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+      <circle cx="5" cy="4" r="1.6" fill="var(--bg-sidebar)" stroke="currentColor" strokeWidth="1.3" />
+      <circle cx="10.5" cy="8" r="1.6" fill="var(--bg-sidebar)" stroke="currentColor" strokeWidth="1.3" />
+      <circle cx="7" cy="12" r="1.6" fill="var(--bg-sidebar)" stroke="currentColor" strokeWidth="1.3" />
+    </svg>
+  )
+}

@@ -25,6 +25,12 @@ Kraft **updates itself** on Windows and as an AppImage on Linux: it checks for a
 
 **Scan a folder for repositories…** (under **+**, or on the welcome screen) searches a folder and everything below it for Git repositories. Tick the ones you want and, if you like, put them straight into a new folder. Repositories you've already saved are marked.
 
+### Sidebar
+
+- Click the sliders button next to the branch filter to **customize the sidebar**: drag sections into the order you want and untick the ones you don't need.
+- Use the layout for **this repository only** or for **all repositories**, and save layouts as **templates** to reuse them in other repositories.
+- Right-click a section header to move it up or down, hide it, or open the customization. Kraft remembers the layout, and which sections are open, between sessions.
+
 ### Everyday Git
 
 - **Commit graph** of all branches, remotes, tags and stashes. Shift-click a range of commits to **squash** them.
