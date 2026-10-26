@@ -77,4 +77,6 @@ Other scripts:
 | `npm run dist` | Build installers for your system into `release/` |
 | `npm run icon` | Render `build/icon.svg` to the `build/icon.png` the installers and window use |
 
+Branches follow git-flow: `dev` is where development happens and is the default branch, and `main` holds the released versions. Features branch off `dev` as `feature/…`; a release is a `release/vX.Y.Z` branch off `dev` that bumps the version and is merged into `main` (and back into `dev`).
+
 Pushing a tag such as `v0.1.1` builds the installers for Windows, macOS and Linux and attaches them to a GitHub release, together with the `latest*.yml` files installed copies read to update themselves. Bump `version` in `package.json` to match the tag, or installed copies won't see the release as newer.
