@@ -11,13 +11,13 @@
   <!-- Each branch is drawn under the line it grows out of, so it starts from that line rather than with a round end. -->
   <g fill="none" stroke-linecap="round" stroke-width="76">
     <path d="M456 412C560 470 640 600 664 724" stroke="#f2ca33" />
-    <path d="M360 600C360 470 520 320 664 300" stroke="#2ece9d" />
+    <path d="M360 600C360 470 520 320 664 300" stroke="#e5534b" />
     <path d="M360 300V724" stroke="#15a0bf" />
   </g>
   <g stroke-width="40" fill="#1d2027">
     <circle cx="360" cy="276" r="74" stroke="#15a0bf" />
     <circle cx="360" cy="748" r="74" stroke="#15a0bf" />
-    <circle cx="668" cy="296" r="74" stroke="#2ece9d" />
+    <circle cx="668" cy="296" r="74" stroke="#e5534b" />
     <circle cx="668" cy="736" r="74" stroke="#f2ca33" />
   </g>
 </svg>
