@@ -11,6 +11,7 @@ import { CherryPickPresenter } from './presenters/cherryPickPresenter'
 import { PullRequestPresenter } from './presenters/pullRequestPresenter'
 import { RemoteBranchPresenter } from './presenters/remoteBranchPresenter'
 import { SquashPresenter } from './presenters/squashPresenter'
+import { useAppUpdate } from './useAppUpdate'
 import { readStored, usePreference, writeStored } from './usePreference'
 
 export type Selection =
@@ -99,6 +100,8 @@ export function useRepositoryController() {
     },
     [dismissToast]
   )
+
+  const appUpdate = useAppUpdate(notify)
 
   const loadLibrary = useCallback(async (): Promise<RepositoryLibrary | null> => {
     try {
@@ -268,6 +271,7 @@ export function useRepositoryController() {
     setDiffExpanded,
     avatarStyle,
     setAvatarStyle,
+    appUpdate,
     run,
     refresh,
     openRepository,

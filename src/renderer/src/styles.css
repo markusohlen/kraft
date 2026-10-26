@@ -506,6 +506,23 @@ body.resizing-rows * {
   font-size: 15px;
 }
 
+/* Shown in the tab bar once an update has been downloaded. */
+.update-button {
+  align-self: center;
+  margin-right: 6px;
+  padding: 3px 10px;
+  border: 1px solid var(--accent);
+  border-radius: 12px;
+  background: rgba(20, 184, 166, 0.15);
+  color: var(--text);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.update-button:hover {
+  background: rgba(20, 184, 166, 0.3);
+}
+
 /* Settings */
 
 .modal.settings {
