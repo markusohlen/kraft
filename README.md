@@ -67,5 +67,6 @@ Other scripts:
 | `npm test` | Run the tests (Vitest) |
 | `npm run typecheck` | Type-check the project |
 | `npm run dist` | Build installers for your system into `release/` |
+| `npm run icon` | Render `build/icon.svg` to the `build/icon.png` the installers and window use |
 
 Pushing a tag such as `v0.1.1` builds the installers for Windows, macOS and Linux and attaches them to a GitHub release.

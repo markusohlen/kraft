@@ -1,5 +1,6 @@
 import { app, BrowserWindow, dialog, ipcMain, safeStorage, shell } from 'electron'
 import { join } from 'node:path'
+import appIcon from '../../build/icon.png?asset'
 import { cloneMethods } from '../application/cloneApi'
 import { CloneService } from '../application/cloneService'
 import { jiraMethods } from '../application/jiraApi'
@@ -97,6 +98,8 @@ function createWindow(): void {
     title: 'Kraft',
     backgroundColor: '#1b1e25',
     autoHideMenuBar: true,
+    // macOS takes the icon from the app bundle; elsewhere the window would show Electron's own while developing.
+    ...(process.platform === 'darwin' ? {} : { icon: appIcon }),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
