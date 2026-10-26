@@ -8,6 +8,7 @@ describe('IPC argument rules', () => {
     expect(() => assertValidArguments('refresh', [])).not.toThrow()
     expect(() => assertValidArguments('commitFileDiff', ['abc123', 'src/a.ts'])).not.toThrow()
     expect(() => assertValidArguments('commitFileDiff', ['abc123', 'src/a.ts', { fullFile: true }])).not.toThrow()
+    expect(() => assertValidArguments('stashFileDiff', ['abc123', { ...fileChange, status: 'untracked' }, { fullFile: false }])).not.toThrow()
     expect(() => assertValidArguments('discard', [[fileChange, { ...fileChange, status: 'untracked' }]])).not.toThrow()
     expect(() => assertValidArguments('startGitFlowBranch', ['feature', 'login'])).not.toThrow()
     expect(() => assertValidArguments('saveJiraColumnFilter', [null])).not.toThrow()

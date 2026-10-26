@@ -313,6 +313,19 @@ export class GitCliRepository implements GitRepository {
     await this.git(['stash', 'drop', `stash@{${assertIndex(index)}}`])
   }
 
+  async stashUntrackedFiles(sha: string): Promise<FileChange[]> {
+    const untracked = await this.stashUntrackedCommit(sha)
+    if (!untracked) return []
+    const files = parseNameStatus(await this.git(['diff-tree', '--root', '--no-commit-id', '-r', '--name-status', '-z', endOfOptions, untracked]))
+    return files.map((file) => ({ ...file, status: 'untracked' }))
+  }
+
+  async stashUntrackedFileDiff(sha: string, path: string, options: DiffOptions): Promise<string> {
+    const untracked = await this.stashUntrackedCommit(sha)
+    if (!untracked) throw new Error('This stash has no untracked files')
+    return this.git(['show', '--format=', ...noDiffCommands, ...contextArgs(options), endOfOptions, untracked, '--', path])
+  }
+
   async fetch(): Promise<void> {
     await this.git(['fetch', '--all', '--prune'])
   }
@@ -345,6 +358,12 @@ export class GitCliRepository implements GitRepository {
 
   async setConfig(key: string, value: string): Promise<void> {
     await this.git(['config', '--local', endOfOptions, key, value])
+  }
+
+  /** `stash push --include-untracked` keeps untracked files in a third parent, a root commit holding only them. */
+  private async stashUntrackedCommit(sha: string): Promise<string | null> {
+    const [, , untracked] = await this.commitParents(assertSha(sha))
+    return untracked ?? null
   }
 
   private async untrackedFileDiff(path: string): Promise<string> {

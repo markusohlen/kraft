@@ -1,6 +1,6 @@
 import { useId } from 'react'
 import type { GraphRow } from '../../../domain/commitGraph'
-import { useProfilePicture, type AvatarStyle } from '../avatars'
+import { initialsColor, useProfilePicture, type AvatarStyle } from '../avatars'
 import { initials, laneColor } from '../format'
 
 export const rowHeight = 30
@@ -84,7 +84,7 @@ interface AvatarNodeProps {
   avatarStyle: AvatarStyle
 }
 
-/** The author's picture (or initials) in a ring of the lane's color. */
+/** The author's picture in a ring of the lane's color, or their initials on a disc of it. */
 function AvatarNode({ x, color, name, email, avatarStyle }: AvatarNodeProps) {
   const { url, onError } = useProfilePicture(email, avatarStyle)
   // Every row is its own <svg>, but clip-path ids are shared by the whole page, so each needs its own.
@@ -92,9 +92,9 @@ function AvatarNode({ x, color, name, email, avatarStyle }: AvatarNodeProps) {
   return (
     <g>
       <circle cx={x} cy={middle} r={avatarRadius + 2} fill={color} />
-      <circle cx={x} cy={middle} r={avatarRadius} fill="#2b303b" />
       {url ? (
         <>
+          <circle cx={x} cy={middle} r={avatarRadius} fill="#2b303b" />
           <clipPath id={clipId}>
             <circle cx={x} cy={middle} r={avatarRadius} />
           </clipPath>
@@ -110,7 +110,7 @@ function AvatarNode({ x, color, name, email, avatarStyle }: AvatarNodeProps) {
           />
         </>
       ) : (
-        <text x={x} y={middle} className="avatar-text" fill={color}>
+        <text x={x} y={middle} className="avatar-text" fill={initialsColor(color)}>
           {initials(name)}
         </text>
       )}

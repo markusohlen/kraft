@@ -60,6 +60,8 @@ const argumentRules: Record<IpcMethod, readonly Rule[]> = {
   refresh: [],
   commitDetails: [isString],
   commitFileDiff: [isString, isString, optional(diffOptions)],
+  stashDetails: [isString],
+  stashFileDiff: [isString, fileChange, optional(diffOptions)],
   workingFileDiff: [fileChange, isBoolean, optional(diffOptions)],
   stage: [arrayOf(isString)],
   unstage: [arrayOf(isString)],
