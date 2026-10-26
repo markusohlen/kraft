@@ -5,17 +5,17 @@ import { askCreateIssueBranch, askDisconnectJira, askJiraSettings, assignToMe } 
 import { kraft } from '../kraftClient'
 import type { RepositoryController } from '../useRepositoryController'
 import { JiraColumnsDialog } from './JiraColumnsDialog'
-import { SidebarSection } from './SidebarSection'
+import { SidebarSection, type SectionControl } from './SidebarSection'
 
 /** Waits for a pause in typing so every keystroke doesn't hit Jira. */
 const searchDelayMs = 400
 
 type IssuesState = { kind: 'idle' } | { kind: 'loading' } | { kind: 'loaded'; issues: JiraIssue[] } | { kind: 'failed'; message: string }
 
-export function JiraSidebarSection({ controller }: { controller: RepositoryController }) {
+export function JiraSidebarSection({ controller, control }: { controller: RepositoryController; control: SectionControl }) {
   if (!controller.jira) {
     return (
-      <SidebarSection title="Jira">
+      <SidebarSection title="Jira" control={control}>
         <div className="sidebar-empty">
           <button className="secondary" onClick={() => askJiraSettings(controller)}>
             Connect Jira
@@ -25,10 +25,10 @@ export function JiraSidebarSection({ controller }: { controller: RepositoryContr
     )
   }
   // Keyed by the connection so switching Jira sites starts with fresh lists.
-  return <ConnectedJiraSection key={controller.jira.baseUrl} controller={controller} />
+  return <ConnectedJiraSection key={controller.jira.baseUrl} controller={controller} control={control} />
 }
 
-function ConnectedJiraSection({ controller }: { controller: RepositoryController }) {
+function ConnectedJiraSection({ controller, control }: { controller: RepositoryController; control: SectionControl }) {
   const [assigned, setAssigned] = useState<IssuesState>({ kind: 'loading' })
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<IssuesState>({ kind: 'idle' })
@@ -96,6 +96,7 @@ function ConnectedJiraSection({ controller }: { controller: RepositoryController
   const assignedCount = assigned.kind === 'loaded' ? assigned.issues.length : undefined
   return (
     <SidebarSection
+      control={control}
       title="Jira"
       count={assignedCount}
       actions={
