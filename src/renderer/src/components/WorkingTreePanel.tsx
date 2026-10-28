@@ -189,7 +189,7 @@ export function WorkingTreePanel({ controller }: { controller: RepositoryControl
           </label>
         </div>
         {amendingPushedCommit && (
-          <div className="amend-warning">This commit is already pushed to {current.upstream}. Amending rewrites it, so pushing it again needs a force push.</div>
+          <div className="amend-warning">This commit is already pushed to {current.upstream}. Amending rewrites it, so Push will offer to force push it.</div>
         )}
         <input className="commit-summary" placeholder="Summary" value={summary} maxLength={200} onChange={(event) => setSummary(event.target.value)} />
         <textarea className="commit-description" placeholder="Description" value={description} onChange={(event) => setDescription(event.target.value)} />

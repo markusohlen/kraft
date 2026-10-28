@@ -87,6 +87,7 @@ const argumentRules: Record<IpcMethod, readonly Rule[]> = {
   fetch: [],
   pull: [],
   push: [],
+  forcePush: [isString],
   createPullRequest: [isString, isString],
   initGitFlow: [gitFlowConfig],
   startGitFlowBranch: [oneOf(...gitFlowBranchTypes), isString],

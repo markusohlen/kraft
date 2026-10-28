@@ -74,6 +74,8 @@ export interface KraftApi {
   fetch(): Promise<void>
   pull(): Promise<AutoStashResult>
   push(): Promise<void>
+  /** Replaces a local branch's upstream with it, refusing when that would drop commits not seen locally. */
+  forcePush(branch: string): Promise<void>
   /** Pushes the branch if needed and returns the page that creates its pull request. */
   createPullRequest(branch: string, targetBranch: string): Promise<PullRequestPage>
 
@@ -117,6 +119,7 @@ export const kraftMethods: readonly KraftMethod[] = [
   'fetch',
   'pull',
   'push',
+  'forcePush',
   'createPullRequest',
   'initGitFlow',
   'startGitFlowBranch',

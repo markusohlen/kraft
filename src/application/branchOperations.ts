@@ -126,6 +126,23 @@ export async function pushCurrent(repository: GitRepository): Promise<void> {
   await repository.push(branchName, remote)
 }
 
+/** Replaces the branch's upstream with it, for history rewritten by amending, rebasing or squashing. */
+export async function forcePushBranch(repository: GitRepository, branchName: string): Promise<void> {
+  const branch = (await repository.branches()).find((candidate) => candidate.name === branchName)
+  if (!branch) throw new Error(`There is no local branch ${branchName}`)
+  if (!branch.upstream) throw new Error(`${branchName} has not been pushed yet; push it normally`)
+  const target = splitRemoteBranch(branch.upstream, await repository.remotes())
+  if (!target) throw new Error(`The upstream ${branch.upstream} of ${branchName} is not on a known remote`)
+  const tip = await repository.remoteBranchTip(branch.upstream)
+  if (!tip) throw new Error(`${branch.upstream} has not been fetched; fetch before force pushing`)
+  // Rewriting history drops the old tip from the branch, but it must have been on the branch once:
+  // a tip that never was holds someone else's commits, fetched but not pulled, that would be lost.
+  // (git's --force-if-includes checks the same, but fails in fresh clones whose remote branches have no reflog.)
+  const seenLocally = (await repository.isAncestor(tip, branchName)) || (await repository.branchReflog(branchName)).includes(tip)
+  if (!seenLocally) throw new Error(`${branch.upstream} has commits that were never on ${branchName}; pull them first so the force push does not remove them`)
+  await repository.forcePushBranch(branchName, target.remote, target.branch, tip)
+}
+
 function firstLine(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error)
   return message.split('\n').find((line) => line.trim()) ?? message

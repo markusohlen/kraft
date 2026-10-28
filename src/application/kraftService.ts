@@ -8,6 +8,7 @@ import {
   cherryPick,
   createAndCheckoutBranch,
   deleteBranch,
+  forcePushBranch,
   mergeIntoCurrent,
   pullCurrent,
   pushCurrent,
@@ -225,6 +226,10 @@ export class KraftService implements KraftApi {
 
   push(): Promise<void> {
     return pushCurrent(this.requireRepository())
+  }
+
+  forcePush(branch: string): Promise<void> {
+    return forcePushBranch(this.requireRepository(), branch)
   }
 
   createPullRequest(branch: string, targetBranch: string) {

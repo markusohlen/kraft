@@ -105,6 +105,15 @@ export interface GitRepository {
   push(branch: string, setUpstreamRemote: string | null): Promise<void>
   /** Pushes a local branch, checked out or not, to `remoteBranch` on `remote` without changing its upstream. */
   pushBranch(branch: string, remote: string, remoteBranch: string): Promise<void>
+  /**
+   * Replaces `remoteBranch` on `remote` with a local branch even when that drops commits from it, but only
+   * while the remote branch is still at `expectedSha` (a lease), so commits pushed since are never dropped.
+   */
+  forcePushBranch(branch: string, remote: string, remoteBranch: string, expectedSha: string): Promise<void>
+  /** The commit a remote-tracking branch such as `origin/main` points at; null when it does not exist. */
+  remoteBranchTip(remoteBranch: string): Promise<string | null>
+  /** Every commit the local branch has pointed at that its reflog still remembers, newest first. */
+  branchReflog(branch: string): Promise<string[]>
   /** The URL the remote fetches from, with `insteadOf` rewrites applied. */
   remoteUrl(remote: string): Promise<string>
 

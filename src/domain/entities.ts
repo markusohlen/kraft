@@ -25,6 +25,14 @@ export interface Branch {
   behind: number
 }
 
+/**
+ * Whether the branch and its upstream each have commits the other lacks, as after amending, rebasing or
+ * squashing pushed commits: a normal push is rejected, and only a force push replaces the upstream.
+ */
+export function hasDiverged(branch: Branch): boolean {
+  return branch.upstream !== null && branch.ahead > 0 && branch.behind > 0
+}
+
 export interface Stash {
   /** Position in the stash list; `stash@{index}`. */
   index: number

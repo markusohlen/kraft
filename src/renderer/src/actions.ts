@@ -1,5 +1,5 @@
 import type { MouseEvent } from 'react'
-import type { Commit, Stash } from '../../domain/entities'
+import { hasDiverged, type Branch, type Commit, type Stash } from '../../domain/entities'
 import { defaultGitFlowConfig, parseGitFlowBranch, type GitFlowBranchType } from '../../domain/gitFlow'
 import { shortSha } from './format'
 import { kraft } from './kraftClient'
@@ -58,6 +58,7 @@ export function showLocalBranchMenu(controller: RepositoryController, event: Mou
             onSelect: () => void controller.run('Rebasing', () => kraft.rebaseCurrentOnto(branch), `Rebased onto ${branch}`)
           }
         ]),
+    ...forcePushItem(controller, branch),
     ...pullRequestItem(controller, branch),
     ...gitFlowFinishItem(controller, branch),
     ...(isCurrent ? [] : [{ label: `Delete ${branch}`, danger: true, onSelect: () => askDeleteBranch(controller, branch) }])
@@ -235,6 +236,40 @@ export function askFinishGitFlowBranch(controller: RepositoryController, branchN
         `Finished ${branch.type}: '${branch.name}'`
       )
   })
+}
+
+/** Pushes the checked-out branch, offering a force push when it has diverged from its upstream. */
+export function pushCurrent(controller: RepositoryController): void {
+  const current = controller.view?.branches.find((branch) => branch.isCurrent)
+  if (current && hasDiverged(current)) return askForcePush(controller, current)
+  void controller.run('Pushing', () => kraft.push(), 'Pushed')
+}
+
+function forcePushItem(controller: RepositoryController, branchName: string): MenuItem[] {
+  const branch = controller.view?.branches.find((candidate) => candidate.name === branchName)
+  return branch && hasDiverged(branch)
+    ? [{ label: `Force push ${branch.name} to ${branch.upstream}…`, danger: true, onSelect: () => askForcePush(controller, branch) }]
+    : []
+}
+
+function askForcePush(controller: RepositoryController, branch: Branch): void {
+  const upstream = branch.upstream ?? ''
+  controller.ask({
+    title: `Force push ${branch.name}?`,
+    description:
+      `${branch.name} and ${upstream} have diverged: ${commitCount(branch.ahead)} only on ${branch.name}, ` +
+      `${commitCount(branch.behind)} only on ${upstream}. This happens after amending, rebasing or squashing pushed commits. ` +
+      `Force pushing replaces ${upstream} with ${branch.name} and removes the ${commitCount(branch.behind)} only there. ` +
+      `If they are someone else's work, pull instead.`,
+    fields: [],
+    confirmLabel: 'Force push',
+    danger: true,
+    onSubmit: () => void controller.run('Force pushing', () => kraft.forcePush(branch.name), `Force pushed ${branch.name}`)
+  })
+}
+
+function commitCount(count: number): string {
+  return `${count} commit${count === 1 ? '' : 's'}`
 }
 
 function gitFlowFinishItem(controller: RepositoryController, branchName: string): MenuItem[] {
