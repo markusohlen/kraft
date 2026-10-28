@@ -4,14 +4,17 @@ import type { CommitRow } from '../../../domain/commitGraph'
 import { findIssueKeys } from '../../../domain/jira'
 import { useProfilePicture } from '../avatars'
 import { formatFullDate, initials, shortSha } from '../format'
+import { filterFileChanges, shownCount } from '../fileFilter'
 import { kraft } from '../kraftClient'
 import type { RepositoryController } from '../useRepositoryController'
+import { FileFilter } from './FileFilter'
 import { FileList } from './FileList'
 import { IssueKeyText, JiraIssueCard } from './JiraIssues'
 
 export function CommitPanel({ controller, sha }: { controller: RepositoryController; sha: string }) {
   const [details, setDetails] = useState<CommitDetails | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [fileQuery, setFileQuery] = useState('')
   const commit = controller.view!.graph.rows.find((row): row is CommitRow => row.kind === 'commit' && row.commit.sha === sha)?.commit
 
   useEffect(() => {
@@ -60,12 +63,13 @@ export function CommitPanel({ controller, sha }: { controller: RepositoryControl
       </div>
       <div className="panel-section">
         <div className="panel-section-header">
-          <span>{details ? `${details.files.length} changed files` : 'Changed files'}</span>
+          <span>{details ? `${shownCount(filterFileChanges(details.files, fileQuery), details.files)} changed files` : 'Changed files'}</span>
         </div>
+        {details && details.files.length > 0 && <FileFilter query={fileQuery} onChange={setFileQuery} />}
         {error && <div className="empty-state error-text">{error}</div>}
         {details && (
           <FileList
-            changes={details.files}
+            changes={filterFileChanges(details.files, fileQuery)}
             isSelected={(change) => controller.diff?.kind === 'commit' && controller.diff.change.path === change.path}
             onOpen={(change) => controller.setDiff({ kind: 'commit', sha, change })}
             onClose={() => controller.setDiff(null)}
