@@ -1,23 +1,24 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
   <!-- Kraft's icon: a K drawn as a commit graph, a main line with two branches. Render to icon.png with `npm run icon`. -->
+  <!-- A bright tile with a bold white K, so it still reads at title-bar size (16px) on both dark and light title bars. -->
   <defs>
-    <linearGradient id="background" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#2d323c" />
-      <stop offset="1" stop-color="#171a20" />
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3b82f6" />
+      <stop offset="0.6" stop-color="#8b5cf6" />
+      <stop offset="1" stop-color="#ec4899" />
     </linearGradient>
   </defs>
-  <rect x="64" y="64" width="896" height="896" rx="208" fill="url(#background)" />
-  <rect x="66" y="66" width="892" height="892" rx="206" fill="none" stroke="#ffffff" stroke-opacity="0.08" stroke-width="4" />
-  <!-- Each branch is drawn under the line it grows out of, so it starts from that line rather than with a round end. -->
-  <g fill="none" stroke-linecap="round" stroke-width="76">
-    <path d="M456 412C560 470 640 600 664 724" stroke="#f472b6" />
-    <path d="M360 600C360 470 520 320 664 300" stroke="#a855f7" />
-    <path d="M360 300V724" stroke="#3b82f6" />
+  <rect x="16" y="16" width="992" height="992" rx="224" fill="url(#background)" />
+  <g fill="none" stroke="#ffffff" stroke-linecap="round" stroke-width="124">
+    <path d="M450 420C590 480 690 620 712 770" />
+    <path d="M318 650C318 470 510 290 712 250" />
+    <path d="M318 240V784" />
   </g>
-  <g stroke-width="40" fill="#1d2027">
-    <circle cx="360" cy="276" r="74" stroke="#3b82f6" />
-    <circle cx="360" cy="748" r="74" stroke="#3b82f6" />
-    <circle cx="668" cy="296" r="74" stroke="#a855f7" />
-    <circle cx="668" cy="736" r="74" stroke="#f472b6" />
+  <!-- Solid commit dots: hollow rings blur into the tile at small sizes. -->
+  <g fill="#ffffff">
+    <circle cx="318" cy="232" r="100" />
+    <circle cx="318" cy="792" r="100" />
+    <circle cx="716" cy="244" r="100" />
+    <circle cx="716" cy="780" r="100" />
   </g>
 </svg>
