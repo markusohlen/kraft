@@ -8,6 +8,7 @@ import {
   cherryPick,
   createAndCheckoutBranch,
   deleteBranch,
+  forcePushBranch,
   mergeIntoCurrent,
   pullCurrent,
   pushCurrent,
@@ -140,6 +141,21 @@ export class KraftService implements KraftApi {
     await repository.commit(message)
   }
 
+  async headCommitMessage(): Promise<string | null> {
+    const repository = this.requireRepository()
+    const head = await repository.headCommit()
+    return head === null ? null : repository.commitMessage(head)
+  }
+
+  async amendCommit(message: string): Promise<void> {
+    if (!message.trim()) throw new Error('A commit message is required')
+    const repository = this.requireRepository()
+    if ((await repository.headCommit()) === null) throw new Error('There is no commit to amend yet')
+    // Amending would fold the merge or cherry-pick into the previous commit instead of completing it.
+    if ((await repository.incomingCommit()) !== null) throw new Error('Commit to complete the merge or cherry-pick before amending')
+    await repository.amendCommit(message)
+  }
+
   mergeConflict(path: string) {
     return loadMergeConflict(this.requireRepository(), path)
   }
@@ -210,6 +226,10 @@ export class KraftService implements KraftApi {
 
   push(): Promise<void> {
     return pushCurrent(this.requireRepository())
+  }
+
+  forcePush(branch: string): Promise<void> {
+    return forcePushBranch(this.requireRepository(), branch)
   }
 
   createPullRequest(branch: string, targetBranch: string) {
