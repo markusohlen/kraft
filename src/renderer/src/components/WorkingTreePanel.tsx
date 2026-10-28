@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { hasConflicts, type FileChange } from '../../../domain/entities'
 import { findIssueKeys } from '../../../domain/jira'
+import { filterFileChanges, shownCount } from '../fileFilter'
 import { extendFileSelection, selectFile, type FileSelection, type SelectionMode } from '../fileSelection'
 import { kraft } from '../kraftClient'
 import { usePanelSize } from '../usePanelSize'
 import type { RepositoryController } from '../useRepositoryController'
+import { FileFilter } from './FileFilter'
 import { FileList } from './FileList'
 import { JiraIssueCard } from './JiraIssues'
 import { ResizeHandle } from './ResizeHandle'
@@ -18,6 +20,7 @@ export function WorkingTreePanel({ controller }: { controller: RepositoryControl
   /** The last commit's message as filled in when amending was turned on; null when the fields were not filled in. */
   const [amendedMessage, setAmendedMessage] = useState<{ summary: string; description: string } | null>(null)
   const [fileSelection, setFileSelection] = useState<FileSelection | null>(null)
+  const [fileQuery, setFileQuery] = useState('')
   const stagedSection = usePanelSize('kraft.stagedFilesHeight', { initial: 200, min: 64, max: 1200 })
   const busy = controller.busyLabel !== null
   const branchIssueKey = controller.jira && view.currentBranch ? findIssueKeys(view.currentBranch, controller.jira.projectKeys)[0] : undefined
@@ -28,8 +31,12 @@ export function WorkingTreePanel({ controller }: { controller: RepositoryControl
     fileSelection ??
     (diff?.kind === 'working' ? selectFile(diff.staged, diff.change.path) : diff?.kind === 'conflict' ? selectFile(false, diff.change.path) : null)
   const isSelected = (change: FileChange, isStaged: boolean) => selection?.staged === isStaged && selection.paths.includes(change.path)
-  const selectedUnstaged = unstaged.filter((change) => isSelected(change, false))
-  const selectedStaged = staged.filter((change) => isSelected(change, true))
+  // While filtering, the lists and their buttons only cover the files that are shown.
+  const filtering = fileQuery.trim() !== ''
+  const shownUnstaged = filterFileChanges(unstaged, fileQuery)
+  const shownStaged = filterFileChanges(staged, fileQuery)
+  const selectedUnstaged = shownUnstaged.filter((change) => isSelected(change, false))
+  const selectedStaged = shownStaged.filter((change) => isSelected(change, true))
   const paths = (changes: FileChange[]) => changes.map((change) => change.path)
 
   // A conflicted file opens in the merge tool, to pick what to keep, rather than in the diff view.
@@ -68,8 +75,8 @@ export function WorkingTreePanel({ controller }: { controller: RepositoryControl
   // With several files selected, the section buttons act on those files instead of the whole list.
   const bulkUnstaged = selectedUnstaged.length > 1
   const bulkStaged = selectedStaged.length > 1
-  const unstagedTargets = bulkUnstaged ? selectedUnstaged : unstaged
-  const stagedTargets = bulkStaged ? selectedStaged : staged
+  const unstagedTargets = bulkUnstaged ? selectedUnstaged : shownUnstaged
+  const stagedTargets = bulkStaged ? selectedStaged : shownStaged
   const actOnTargets = (action: (changes: FileChange[]) => void, changes: FileChange[]) => {
     action(changes)
     setFileSelection(null)
@@ -132,26 +139,28 @@ export function WorkingTreePanel({ controller }: { controller: RepositoryControl
         )}
       </div>
 
+      {staged.length + unstaged.length > 0 && <FileFilter query={fileQuery} onChange={setFileQuery} />}
+
       <div className="panel-section unstaged-section">
         <div className="panel-section-header">
-          <span>Unstaged Files ({unstaged.length})</span>
-          {unstaged.length > 0 && (
+          <span>Unstaged Files ({shownCount(shownUnstaged, unstaged)})</span>
+          {shownUnstaged.length > 0 && (
             <span className="section-buttons">
               <button className="link-button danger" disabled={busy} onClick={() => discard(unstagedTargets)}>
-                {bulkUnstaged ? `Discard ${fileCount(unstagedTargets)}` : 'Discard all'}
+                {bulkUnstaged || filtering ? `Discard ${fileCount(unstagedTargets)}` : 'Discard all'}
               </button>
               <button className="stage-button" disabled={busy} onClick={() => actOnTargets(stage, unstagedTargets)}>
-                {bulkUnstaged ? `Stage ${fileCount(unstagedTargets)}` : 'Stage all changes'}
+                {bulkUnstaged || filtering ? `Stage ${fileCount(unstagedTargets)}` : 'Stage all changes'}
               </button>
             </span>
           )}
         </div>
         <FileList
-          changes={unstaged}
+          changes={shownUnstaged}
           isSelected={(change) => isSelected(change, false)}
           onOpen={(change) => openDiff(change, false)}
           onClose={closeDiff}
-          onSelectMore={(change, mode) => selectMore(change, false, unstaged, mode)}
+          onSelectMore={(change, mode) => selectMore(change, false, shownUnstaged, mode)}
           actions={[
             { label: 'Discard', title: 'Discard changes', danger: true, onClick: (change) => discard([change]) },
             { label: 'Stage', title: 'Stage file', onClick: (change) => stage([change]) }
@@ -163,19 +172,19 @@ export function WorkingTreePanel({ controller }: { controller: RepositoryControl
 
       <div className="panel-section" style={{ flex: `0 1 ${stagedSection.size}px` }}>
         <div className="panel-section-header">
-          <span>Staged Files ({staged.length})</span>
-          {staged.length > 0 && (
+          <span>Staged Files ({shownCount(shownStaged, staged)})</span>
+          {shownStaged.length > 0 && (
             <button className="unstage-button" disabled={busy} onClick={() => actOnTargets(unstage, stagedTargets)}>
-              {bulkStaged ? `Unstage ${fileCount(stagedTargets)}` : 'Unstage all changes'}
+              {bulkStaged || filtering ? `Unstage ${fileCount(stagedTargets)}` : 'Unstage all changes'}
             </button>
           )}
         </div>
         <FileList
-          changes={staged}
+          changes={shownStaged}
           isSelected={(change) => isSelected(change, true)}
           onOpen={(change) => openDiff(change, true)}
           onClose={closeDiff}
-          onSelectMore={(change, mode) => selectMore(change, true, staged, mode)}
+          onSelectMore={(change, mode) => selectMore(change, true, shownStaged, mode)}
           actions={[{ label: 'Unstage', title: 'Unstage file', onClick: (change) => unstage([change]) }]}
         />
       </div>

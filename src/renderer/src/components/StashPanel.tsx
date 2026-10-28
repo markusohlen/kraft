@@ -2,14 +2,17 @@ import { useEffect, useState } from 'react'
 import type { CommitDetails } from '../../../application/kraftApi'
 import { applyStash, askDropStash, popStash } from '../actions'
 import { formatFullDate, shortSha, stashSummary } from '../format'
+import { filterFileChanges, shownCount } from '../fileFilter'
 import { kraft } from '../kraftClient'
 import type { RepositoryController } from '../useRepositoryController'
+import { FileFilter } from './FileFilter'
 import { FileList } from './FileList'
 
 /** Details of a stash selected in the graph: what it holds and what can be done with it. */
 export function StashPanel({ controller, sha }: { controller: RepositoryController; sha: string }) {
   const [details, setDetails] = useState<CommitDetails | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [fileQuery, setFileQuery] = useState('')
   const stash = controller.view!.stashes.find((candidate) => candidate.sha === sha)
   const busy = controller.busyLabel !== null
 
@@ -45,12 +48,13 @@ export function StashPanel({ controller, sha }: { controller: RepositoryControll
       </div>
       <div className="panel-section">
         <div className="panel-section-header">
-          <span>{details ? `${details.files.length} changed files` : 'Changed files'}</span>
+          <span>{details ? `${shownCount(filterFileChanges(details.files, fileQuery), details.files)} changed files` : 'Changed files'}</span>
         </div>
+        {details && details.files.length > 0 && <FileFilter query={fileQuery} onChange={setFileQuery} />}
         {error && <div className="empty-state error-text">{error}</div>}
         {details && (
           <FileList
-            changes={details.files}
+            changes={filterFileChanges(details.files, fileQuery)}
             isSelected={(change) => controller.diff?.kind === 'stash' && controller.diff.change.path === change.path}
             onOpen={(change) => controller.setDiff({ kind: 'stash', sha, change })}
             onClose={() => controller.setDiff(null)}
