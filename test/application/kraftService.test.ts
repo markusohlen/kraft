@@ -116,6 +116,42 @@ describe('KraftService', () => {
     await expect(service.commit('Empty')).rejects.toThrow('Stage some changes')
   })
 
+  it('amends the last commit with the staged changes and a new message', async () => {
+    await test.commitFile('feature.txt', 'feature\n', 'Add feature')
+    await service.openRepository(test.path)
+    await test.write('forgotten.txt', 'forgotten\n')
+
+    expect(await service.headCommitMessage()).toBe('Add feature')
+    await service.stage(['forgotten.txt'])
+    await service.amendCommit('Add feature\n\nWith the forgotten file')
+    const view = await service.refresh()
+    const details = await service.commitDetails(commitAt(view.graph.rows, 0).sha)
+
+    expect(view.graph.rows.map((row) => row.kind)).toEqual(['commit', 'commit'])
+    expect(details.message).toBe('Add feature\n\nWith the forgotten file')
+    expect(details.files.map((change) => change.path)).toEqual(['feature.txt', 'forgotten.txt'])
+  })
+
+  it('rewords the last commit when nothing is staged', async () => {
+    await service.openRepository(test.path)
+
+    await service.amendCommit('Reworded')
+
+    expect(await service.headCommitMessage()).toBe('Reworded')
+    expect(await test.git('rev-list', '--count', 'HEAD')).toBe('1')
+  })
+
+  it('refuses to amend while a cherry-pick waits to be committed', async () => {
+    await test.git('switch', '-q', '-c', 'other')
+    await test.commitFile('readme.txt', 'theirs\n', 'Change on other')
+    await test.git('switch', '-q', 'main')
+    await test.commitFile('readme.txt', 'ours\n', 'Change on main')
+    await test.git('cherry-pick', 'other').catch(() => undefined)
+    await service.openRepository(test.path)
+
+    await expect(service.amendCommit('Amended')).rejects.toThrow('before amending')
+  })
+
   it('rejects folders that are not repositories', async () => {
     await expect(service.openRepository(test.path + '-missing')).rejects.toThrow('is not a folder')
   })

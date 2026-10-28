@@ -54,6 +54,8 @@ export interface GitRepository {
    */
   mergeTexts(base: string, ours: string, theirs: string, markerSize: number): Promise<string>
   commit(message: string): Promise<void>
+  /** Replaces HEAD with a commit of the staged changes on top of HEAD's, under `message`, as `git commit --amend` does. */
+  amendCommit(message: string): Promise<void>
   /**
    * Creates a commit holding the files of `treeOf`, without moving any branch or touching the working
    * tree, and returns its sha. `parent` null makes it a root commit.

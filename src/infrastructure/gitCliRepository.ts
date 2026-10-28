@@ -191,6 +191,10 @@ export class GitCliRepository implements GitRepository {
     await this.git(['commit', '-m', message])
   }
 
+  async amendCommit(message: string): Promise<void> {
+    await this.git(['commit', '--amend', '-m', message])
+  }
+
   async commitTree(treeOf: string, parent: string | null, message: string, author: CommitAuthor): Promise<string> {
     const parents = parent === null ? [] : ['-p', assertSha(parent)]
     const env = { GIT_AUTHOR_NAME: author.name, GIT_AUTHOR_EMAIL: author.email, GIT_AUTHOR_DATE: author.date }
