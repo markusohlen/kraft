@@ -35,6 +35,7 @@ Kraft **updates itself** on Windows and as an AppImage on Linux: it checks for a
 
 - **Commit graph** of all branches, remotes, tags and stashes. Shift-click a range of commits to **squash** them.
 - **Working tree panel**: stage, unstage or discard single files, or Ctrl/Cmd-click and Shift-click several and act on all of them. Drag the divider above *Staged files* to resize the lists.
+- **Filter files**: start typing in the working tree, commit or stash panel to show only the files whose names start with what you type, such as `s` for every file starting with s. Escape clears it.
 - **Diffs** in split or unified layout, with syntax highlighting, the changed characters marked, and an optional whole-file view. Marks along the scrollbar show where the changes are in the file.
 - **Branches**: checkout (remote branches are fetched and fast-forwarded first), create, delete, merge, rebase and cherry-pick from the right-click menus.
 - **Amend**: tick *Amend previous commit* in the commit box to add the staged changes to the last commit or reword its message.
