@@ -54,6 +54,8 @@ export interface GitRepository {
    */
   mergeTexts(base: string, ours: string, theirs: string, markerSize: number): Promise<string>
   commit(message: string): Promise<void>
+  /** Replaces HEAD with a commit of the staged changes on top of HEAD's, under `message`, as `git commit --amend` does. */
+  amendCommit(message: string): Promise<void>
   /**
    * Creates a commit holding the files of `treeOf`, without moving any branch or touching the working
    * tree, and returns its sha. `parent` null makes it a root commit.
@@ -103,6 +105,15 @@ export interface GitRepository {
   push(branch: string, setUpstreamRemote: string | null): Promise<void>
   /** Pushes a local branch, checked out or not, to `remoteBranch` on `remote` without changing its upstream. */
   pushBranch(branch: string, remote: string, remoteBranch: string): Promise<void>
+  /**
+   * Replaces `remoteBranch` on `remote` with a local branch even when that drops commits from it, but only
+   * while the remote branch is still at `expectedSha` (a lease), so commits pushed since are never dropped.
+   */
+  forcePushBranch(branch: string, remote: string, remoteBranch: string, expectedSha: string): Promise<void>
+  /** The commit a remote-tracking branch such as `origin/main` points at; null when it does not exist. */
+  remoteBranchTip(remoteBranch: string): Promise<string | null>
+  /** Every commit the local branch has pointed at that its reflog still remembers, newest first. */
+  branchReflog(branch: string): Promise<string[]>
   /** The URL the remote fetches from, with `insteadOf` rewrites applied. */
   remoteUrl(remote: string): Promise<string>
 

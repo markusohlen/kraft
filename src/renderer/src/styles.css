@@ -2182,6 +2182,29 @@ body.resizing-rows * {
   resize: vertical;
 }
 
+/* Sits in the uppercase section header, so it undoes that styling. */
+.amend-toggle {
+  gap: 6px;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+  cursor: pointer;
+}
+
+.amend-toggle input {
+  accent-color: var(--accent);
+  margin: 0;
+}
+
+.amend-warning {
+  margin: 0 14px;
+  background: rgba(226, 185, 61, 0.12);
+  border: 1px solid var(--modified);
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-size: 12px;
+}
+
 .commit-sha {
   color: var(--text-muted);
   font-size: 12px;

@@ -14,6 +14,9 @@ export function WorkingTreePanel({ controller }: { controller: RepositoryControl
   const { staged, unstaged } = view.status
   const [summary, setSummary] = useState('')
   const [description, setDescription] = useState('')
+  const [amend, setAmend] = useState(false)
+  /** The last commit's message as filled in when amending was turned on; null when the fields were not filled in. */
+  const [amendedMessage, setAmendedMessage] = useState<{ summary: string; description: string } | null>(null)
   const [fileSelection, setFileSelection] = useState<FileSelection | null>(null)
   const stagedSection = usePanelSize('kraft.stagedFilesHeight', { initial: 200, min: 64, max: 1200 })
   const busy = controller.busyLabel !== null
@@ -72,17 +75,45 @@ export function WorkingTreePanel({ controller }: { controller: RepositoryControl
     setFileSelection(null)
   }
 
+  const current = view.branches.find((branch) => branch.isCurrent)
+  const hasCommits = view.graph.rows.some((row) => row.kind === 'commit')
+  const amendingPushedCommit = amend && current?.upstream != null && current.ahead === 0
+
+  // Amending starts from the last commit's message, so it can be kept, corrected or rewritten.
+  const toggleAmend = async (checked: boolean) => {
+    setAmend(checked)
+    if (!checked) {
+      // Only clears a message it filled in itself and that was left as it was.
+      if (amendedMessage?.summary === summary && amendedMessage.description === description) {
+        setSummary('')
+        setDescription('')
+      }
+      setAmendedMessage(null)
+      return
+    }
+    if (summary.trim() || description.trim()) return
+    const message = await kraft.headCommitMessage()
+    if (message === null) return
+    const [first, ...rest] = message.split('\n')
+    const filled = { summary: first, description: rest.join('\n').trim() }
+    setSummary(filled.summary)
+    setDescription(filled.description)
+    setAmendedMessage(filled)
+  }
+
   const commit = () => {
     const message = description.trim() ? `${summary.trim()}\n\n${description.trim()}` : summary.trim()
     void controller.run(
-      'Committing',
+      amend ? 'Amending' : 'Committing',
       async () => {
-        await kraft.commit(message)
+        await (amend ? kraft.amendCommit(message) : kraft.commit(message))
         setSummary('')
         setDescription('')
+        setAmend(false)
+        setAmendedMessage(null)
         closeDiff()
       },
-      'Changes committed'
+      amend ? 'Previous commit amended' : 'Changes committed'
     )
   }
 
@@ -152,15 +183,27 @@ export function WorkingTreePanel({ controller }: { controller: RepositoryControl
       <div className="commit-box">
         <div className="panel-section-header">
           <span>Commit</span>
+          <label className="checkbox-field amend-toggle" title="Replace the last commit with one holding its changes plus the staged ones">
+            <input type="checkbox" checked={amend} disabled={busy || !hasCommits} onChange={(event) => void toggleAmend(event.target.checked)} />
+            Amend previous commit
+          </label>
         </div>
+        {amendingPushedCommit && (
+          <div className="amend-warning">This commit is already pushed to {current.upstream}. Amending rewrites it, so Push will offer to force push it.</div>
+        )}
         <input className="commit-summary" placeholder="Summary" value={summary} maxLength={200} onChange={(event) => setSummary(event.target.value)} />
         <textarea className="commit-description" placeholder="Description" value={description} onChange={(event) => setDescription(event.target.value)} />
-        <button className="primary commit-button" disabled={busy || staged.length === 0 || !summary.trim()} onClick={commit}>
-          {staged.length === 0 ? 'Stage files to commit' : `Commit changes to ${fileCount(staged)}`}
+        <button className="primary commit-button" disabled={busy || (staged.length === 0 && !amend) || !summary.trim()} onClick={commit}>
+          {commitButtonLabel(staged, amend)}
         </button>
       </div>
     </div>
   )
+}
+
+function commitButtonLabel(staged: FileChange[], amend: boolean): string {
+  if (amend) return staged.length === 0 ? 'Amend previous commit message' : `Amend previous commit with ${fileCount(staged)}`
+  return staged.length === 0 ? 'Stage files to commit' : `Commit changes to ${fileCount(staged)}`
 }
 
 function fileCount(changes: FileChange[]): string {

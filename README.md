@@ -37,6 +37,8 @@ Kraft **updates itself** on Windows and as an AppImage on Linux: it checks for a
 - **Working tree panel**: stage, unstage or discard single files, or Ctrl/Cmd-click and Shift-click several and act on all of them. Drag the divider above *Staged files* to resize the lists.
 - **Diffs** in split or unified layout, with syntax highlighting, the changed characters marked, and an optional whole-file view. Marks along the scrollbar show where the changes are in the file.
 - **Branches**: checkout (remote branches are fetched and fast-forwarded first), create, delete, merge, rebase and cherry-pick from the right-click menus.
+- **Amend**: tick *Amend previous commit* in the commit box to add the staged changes to the last commit or reword its message.
+- **Force push**: after amending, rebasing or squashing pushed commits, **Push** offers to force push, as does the branch's right-click menu. Kraft refuses when that would remove commits you have never had locally.
 - **Auto-stash**: when a checkout, merge, pull or cherry-pick needs a clean working tree, Kraft stashes your changes and pops them back afterwards.
 - **Pull requests**: right-click a branch and choose **Create pull request**. Kraft pushes it if needed and opens the pull request page.
 - **Gitflow**: initialise it from the sidebar, then start and finish features, releases and hotfixes.
@@ -76,5 +78,7 @@ Other scripts:
 | `npm run typecheck` | Type-check the project |
 | `npm run dist` | Build installers for your system into `release/` |
 | `npm run icon` | Render `build/icon.svg` to the `build/icon.png` the installers and window use |
+
+Branches follow git-flow: `dev` is where development happens and is the default branch, and `main` holds the released versions. Features branch off `dev` as `feature/…`; a release is a `release/vX.Y.Z` branch off `dev` that bumps the version and is merged into `main` (and back into `dev`).
 
 Pushing a tag such as `v0.1.1` builds the installers for Windows, macOS and Linux and attaches them to a GitHub release, together with the `latest*.yml` files installed copies read to update themselves. Bump `version` in `package.json` to match the tag, or installed copies won't see the release as newer.

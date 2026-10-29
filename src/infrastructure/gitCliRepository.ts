@@ -191,6 +191,10 @@ export class GitCliRepository implements GitRepository {
     await this.git(['commit', '-m', message])
   }
 
+  async amendCommit(message: string): Promise<void> {
+    await this.git(['commit', '--amend', '-m', message])
+  }
+
   async commitTree(treeOf: string, parent: string | null, message: string, author: CommitAuthor): Promise<string> {
     const parents = parent === null ? [] : ['-p', assertSha(parent)]
     const env = { GIT_AUTHOR_NAME: author.name, GIT_AUTHOR_EMAIL: author.email, GIT_AUTHOR_DATE: author.date }
@@ -345,6 +349,20 @@ export class GitCliRepository implements GitRepository {
 
   async pushBranch(branch: string, remote: string, remoteBranch: string): Promise<void> {
     await this.git(['push', endOfOptions, remote, `refs/heads/${branch}:refs/heads/${remoteBranch}`])
+  }
+
+  async forcePushBranch(branch: string, remote: string, remoteBranch: string, expectedSha: string): Promise<void> {
+    const lease = `--force-with-lease=refs/heads/${remoteBranch}:${assertSha(expectedSha)}`
+    await this.git(['push', lease, endOfOptions, remote, `refs/heads/${branch}:refs/heads/${remoteBranch}`])
+  }
+
+  remoteBranchTip(remoteBranch: string): Promise<string | null> {
+    return this.resolveRef(`refs/remotes/${remoteBranch}`)
+  }
+
+  async branchReflog(branch: string): Promise<string[]> {
+    const output = await this.git(['reflog', 'show', '--format=%H', `refs/heads/${branch}`])
+    return output.split('\n').filter(Boolean)
   }
 
   async remoteUrl(remote: string): Promise<string> {

@@ -46,6 +46,10 @@ export interface KraftApi {
   unstage(paths: string[]): Promise<void>
   discard(changes: FileChange[]): Promise<void>
   commit(message: string): Promise<void>
+  /** The full message of HEAD's commit, to edit when amending; null before the first commit. */
+  headCommitMessage(): Promise<string | null>
+  /** Replaces the last commit with one holding its changes plus the staged ones; nothing staged only rewords it. */
+  amendCommit(message: string): Promise<void>
   mergeConflict(path: string): Promise<MergeConflict>
   /** Saves and stages a conflicted file's resolved text; `null` resolves it by deleting the file. */
   resolveMergeConflict(path: string, content: string | null): Promise<void>
@@ -70,6 +74,8 @@ export interface KraftApi {
   fetch(): Promise<void>
   pull(): Promise<AutoStashResult>
   push(): Promise<void>
+  /** Replaces a local branch's upstream with it, refusing when that would drop commits not seen locally. */
+  forcePush(branch: string): Promise<void>
   /** Pushes the branch if needed and returns the page that creates its pull request. */
   createPullRequest(branch: string, targetBranch: string): Promise<PullRequestPage>
 
@@ -93,6 +99,8 @@ export const kraftMethods: readonly KraftMethod[] = [
   'unstage',
   'discard',
   'commit',
+  'headCommitMessage',
+  'amendCommit',
   'mergeConflict',
   'resolveMergeConflict',
   'checkoutBranch',
@@ -111,6 +119,7 @@ export const kraftMethods: readonly KraftMethod[] = [
   'fetch',
   'pull',
   'push',
+  'forcePush',
   'createPullRequest',
   'initGitFlow',
   'startGitFlowBranch',
