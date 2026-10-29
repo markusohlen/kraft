@@ -81,4 +81,4 @@ Other scripts:
 
 Branches follow git-flow: `dev` is where development happens and is the default branch, and `main` holds the released versions. Features branch off `dev` as `feature/…`; a release is a `release/vX.Y.Z` branch off `dev` that bumps the version and is merged into `main` (and back into `dev`).
 
-Pushing a tag such as `v0.1.1` builds the installers for Windows, macOS and Linux and attaches them to a GitHub release, together with the `latest*.yml` files installed copies read to update themselves. Bump `version` in `package.json` to match the tag, or installed copies won't see the release as newer.
+Pushing a tag such as `v0.1.1` builds the installers for Windows, macOS and Linux and attaches them to a GitHub release, together with the `latest*.yml` files installed copies read to update themselves. Bump `version` in `package.json` to match the tag, or installed copies won't see the release as newer. You can also run the **Release** workflow by hand on `main` (Actions → Release → Run workflow): it tags the branch with `package.json`'s version and builds the same release.
