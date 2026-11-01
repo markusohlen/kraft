@@ -6,6 +6,7 @@ import { hasUncommittedChanges, type FileChange } from '../../domain/entities'
 import { emptyLibrary, findRepository, type RepositoryLibrary } from '../../domain/repositoryLibrary'
 import { avatarStyles, type AvatarStyle } from './avatars'
 import { openInBrowser } from './browser'
+import type { GraphPlace } from './graphScroll'
 import { kraft } from './kraftClient'
 import { LatestRequest } from './latestRequest'
 import { BackgroundFetchPresenter } from './presenters/backgroundFetchPresenter'
@@ -98,6 +99,7 @@ export function useRepositoryController() {
   /** Why the last automatic fetch failed, by repository. */
   const [fetchFailures, setFetchFailures] = useState<Record<string, string>>({})
   const nextToastId = useRef(1)
+  const graphPlace = useRef<GraphPlace | null>(null)
   const viewRequests = useRef(new LatestRequest())
   /** The latest values, for the timer of the background fetch, which outlives any one render. */
   const latest = useRef({ view, busy: false, autoFetch })
@@ -296,6 +298,7 @@ export function useRepositoryController() {
     setSelection,
     diff,
     setDiff,
+    graphPlace,
     toasts,
     dismissToast,
     notify,
