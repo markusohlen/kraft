@@ -73,6 +73,7 @@ export function Toolbar({ controller }: { controller: RepositoryController }) {
 
       <div className="toolbar-group">
         <ToolbarButton icon="↻" label="Refresh" disabled={busy} onClick={() => void controller.refresh()} />
+        <ToolbarButton icon="⚙" label="Settings" onClick={controller.openSettings} />
       </div>
     </header>
   )
