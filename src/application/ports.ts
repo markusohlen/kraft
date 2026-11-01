@@ -99,6 +99,8 @@ export interface GitRepository {
   stashUntrackedFileDiff(sha: string, path: string, options: DiffOptions): Promise<string>
 
   fetch(): Promise<void>
+  /** Fetches all remotes for nobody in particular: it fails rather than ask for credentials, and gives up if it takes too long. */
+  fetchInBackground(): Promise<void>
   /** Fetches one branch, updating its remote-tracking branch. */
   fetchBranch(remote: string, branch: string): Promise<void>
   pull(): Promise<void>

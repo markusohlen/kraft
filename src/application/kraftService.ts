@@ -45,6 +45,7 @@ const openRepositoryTitle = 'Open repository'
 
 export class KraftService implements KraftApi {
   private repository: GitRepository | null = null
+  private backgroundFetch: Promise<void> | null = null
 
   constructor(
     private readonly repositories: GitRepositoryFactory,
@@ -169,7 +170,7 @@ export class KraftService implements KraftApi {
   }
 
   checkoutRemoteBranch(remoteBranch: string) {
-    return checkoutRemoteBranch(this.requireRepository(), remoteBranch)
+    return this.afterBackgroundFetch(() => checkoutRemoteBranch(this.requireRepository(), remoteBranch))
   }
 
   createBranch(name: string, startPoint: string) {
@@ -217,23 +218,30 @@ export class KraftService implements KraftApi {
   }
 
   fetch(): Promise<void> {
-    return this.requireRepository().fetch()
+    return this.afterBackgroundFetch(() => this.requireRepository().fetch())
+  }
+
+  fetchInBackground(): Promise<void> {
+    this.backgroundFetch ??= this.requireRepository()
+      .fetchInBackground()
+      .finally(() => (this.backgroundFetch = null))
+    return this.backgroundFetch
   }
 
   pull() {
-    return pullCurrent(this.requireRepository())
+    return this.afterBackgroundFetch(() => pullCurrent(this.requireRepository()))
   }
 
   push(): Promise<void> {
-    return pushCurrent(this.requireRepository())
+    return this.afterBackgroundFetch(() => pushCurrent(this.requireRepository()))
   }
 
   forcePush(branch: string): Promise<void> {
-    return forcePushBranch(this.requireRepository(), branch)
+    return this.afterBackgroundFetch(() => forcePushBranch(this.requireRepository(), branch))
   }
 
   createPullRequest(branch: string, targetBranch: string) {
-    return createPullRequest(this.requireRepository(), branch, targetBranch)
+    return this.afterBackgroundFetch(() => createPullRequest(this.requireRepository(), branch, targetBranch))
   }
 
   initGitFlow(config: GitFlowConfig): Promise<void> {
@@ -246,6 +254,12 @@ export class KraftService implements KraftApi {
 
   finishGitFlowBranch(branchName: string, options: FinishGitFlowOptions) {
     return finishGitFlowBranch(this.requireRepository(), branchName, options)
+  }
+
+  /** Two commands updating the same remote-tracking branch make one fail on its lock, and that must not be the user's. */
+  private async afterBackgroundFetch<Result>(operation: () => Promise<Result>): Promise<Result> {
+    await this.backgroundFetch?.catch(() => undefined)
+    return operation()
   }
 
   private requireRepository(): GitRepository {

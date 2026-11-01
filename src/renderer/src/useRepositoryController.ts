@@ -7,6 +7,8 @@ import { emptyLibrary, findRepository, type RepositoryLibrary } from '../../doma
 import { avatarStyles, type AvatarStyle } from './avatars'
 import { openInBrowser } from './browser'
 import { kraft } from './kraftClient'
+import { LatestRequest } from './latestRequest'
+import { BackgroundFetchPresenter } from './presenters/backgroundFetchPresenter'
 import { CherryPickPresenter } from './presenters/cherryPickPresenter'
 import { PullRequestPresenter } from './presenters/pullRequestPresenter'
 import { RemoteBranchPresenter } from './presenters/remoteBranchPresenter'
@@ -91,7 +93,14 @@ export function useRepositoryController() {
   const [diffExpanded, setDiffExpanded] = usePreference<boolean>('kraft.diffExpanded', false, [true, false])
   /** Initials by default: profile pictures send a hash of every author's email to gravatar.com. */
   const [avatarStyle, setAvatarStyle] = usePreference<AvatarStyle>('kraft.avatarStyle', 'initials', avatarStyles)
+  const [autoFetch, setAutoFetch] = usePreference<boolean>('kraft.autoFetch', true, [true, false])
+  /** Why the last automatic fetch failed, by repository. */
+  const [fetchFailures, setFetchFailures] = useState<Record<string, string>>({})
   const nextToastId = useRef(1)
+  const viewRequests = useRef(new LatestRequest())
+  /** The latest values, for the timer of the background fetch, which outlives any one render. */
+  const latest = useRef({ view, busy: false, autoFetch })
+  latest.current = { view, busy: busyLabel !== null, autoFetch }
 
   const dismissToast = useCallback((id: number) => setToasts((current) => current.filter((toast) => toast.id !== id)), [])
 
@@ -129,13 +138,20 @@ export function useRepositoryController() {
     [notify]
   )
 
+  /** Shows the repository's current state, unless a newer request or another repository got there first. */
+  const reloadView = useCallback(async () => {
+    const isLatest = viewRequests.current.begin()
+    const reloaded = await kraft.refresh()
+    if (isLatest()) setView(reloaded)
+  }, [])
+
   const refresh = useCallback(async () => {
     try {
-      setView(await kraft.refresh())
+      await reloadView()
     } catch (error) {
       notify('error', messageOf(error))
     }
-  }, [notify])
+  }, [notify, reloadView])
 
   const run = useCallback(
     async (label: string, action: () => Promise<unknown>, successText?: string) => {
@@ -164,6 +180,17 @@ export function useRepositoryController() {
   /** The presenters' views are this window: its busy indicator, toasts, dialogs and the browser. */
   const presenters = useMemo(
     () => ({
+      backgroundFetch: new BackgroundFetchPresenter(kraft, {
+        shownRepository: () => {
+          const shown = latest.current.view
+          return shown && { path: shown.path, hasRemotes: shown.remotes.length > 0 }
+        },
+        isBusy: () => latest.current.busy,
+        isVisible: () => document.visibilityState === 'visible',
+        fetchesAutomatically: () => latest.current.autoFetch,
+        reload: reloadView,
+        showFetchFailure: (path, message) => setFetchFailures((current) => withFetchFailure(current, path, message))
+      }),
       cherryPick: new CherryPickPresenter(kraft, { run, notify }),
       remoteBranch: new RemoteBranchPresenter(kraft, { run, notify }),
       squash: new SquashPresenter(kraft, {
@@ -194,7 +221,7 @@ export function useRepositoryController() {
           })
       })
     }),
-    [run, notify]
+    [run, notify, reloadView]
   )
 
   const openRepository = useCallback(
@@ -202,6 +229,8 @@ export function useRepositoryController() {
       setBusyLabel('Opening repository')
       try {
         const opened = await kraft.openRepository(path)
+        // A refresh still running may be of the repository this replaces.
+        viewRequests.current.invalidate()
         setView(opened)
         writeStored(lastRepositoryKey, opened.path)
         // Opening saves the repository, which may have added a tab.
@@ -241,6 +270,19 @@ export function useRepositoryController() {
     return () => window.removeEventListener('focus', refreshOnFocus)
   }, [view, refresh])
 
+  const { backgroundFetch } = presenters
+  useEffect(() => {
+    backgroundFetch.start()
+    const fetchIfDue = () => backgroundFetch.fetchIfDue()
+    window.addEventListener('focus', fetchIfDue)
+    document.addEventListener('visibilitychange', fetchIfDue)
+    return () => {
+      backgroundFetch.stop()
+      window.removeEventListener('focus', fetchIfDue)
+      document.removeEventListener('visibilitychange', fetchIfDue)
+    }
+  }, [backgroundFetch])
+
   return {
     view,
     busyLabel,
@@ -274,6 +316,9 @@ export function useRepositoryController() {
     setDiffExpanded,
     avatarStyle,
     setAvatarStyle,
+    autoFetch,
+    setAutoFetch,
+    fetchFailure: autoFetch && view ? (fetchFailures[view.path] ?? null) : null,
     appUpdate,
     run,
     refresh,
@@ -283,6 +328,12 @@ export function useRepositoryController() {
 }
 
 export type RepositoryController = ReturnType<typeof useRepositoryController>
+
+function withFetchFailure(failures: Record<string, string>, path: string, message: string | null): Record<string, string> {
+  if (message !== null) return { ...failures, [path]: message }
+  const { [path]: _cleared, ...others } = failures
+  return others
+}
 
 function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error)

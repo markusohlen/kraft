@@ -85,6 +85,7 @@ const argumentRules: Record<IpcMethod, readonly Rule[]> = {
   stashApply: [isIndex],
   stashDrop: [isIndex],
   fetch: [],
+  fetchInBackground: [],
   pull: [],
   push: [],
   forcePush: [isString],
