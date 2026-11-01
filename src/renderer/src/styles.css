@@ -501,11 +501,6 @@ body.resizing-rows * {
   flex: 1;
 }
 
-.settings-button {
-  align-self: center;
-  font-size: 15px;
-}
-
 /* Shown in the tab bar once an update has been downloaded. */
 .update-button {
   align-self: center;

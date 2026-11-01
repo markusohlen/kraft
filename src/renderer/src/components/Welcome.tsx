@@ -26,6 +26,9 @@ export function Welcome({ controller }: { controller: RepositoryController }) {
           <button className="secondary large" onClick={() => void scanFolderForRepositories(controller)}>
             Scan a folder for repositories
           </button>
+          <button className="secondary large" onClick={controller.openSettings}>
+            Settings
+          </button>
         </div>
         {repositories.length > 0 && (
           <div className="recent">
