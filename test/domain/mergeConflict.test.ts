@@ -2,13 +2,16 @@ import { describe, expect, it } from 'vitest'
 import {
   conflictCount,
   emptyChoice,
+  isChoiceEmpty,
   parseConflictMarkers,
   resolvedLines,
   resolveMerge,
   setPicked,
   setSidePicked,
+  sidePickState,
   withLineEndings,
-  type MergeSegment
+  type ConflictSegment,
+  type MergedText
 } from '../../src/domain/mergeConflict'
 
 const size = 7
@@ -21,7 +24,9 @@ const merged = parseConflictMarkers(
   ['top', `${ours} ours`, 'a1', 'a2', `${base} base`, 'original', middle, 'b1', `${theirs} theirs`, 'bottom', ''].join('\n'),
   size
 )
-const conflict = merged.segments[1] as Extract<MergeSegment, { kind: 'conflict' }>
+const conflict = merged.segments[1] as ConflictSegment
+const emptyOurs: ConflictSegment = { kind: 'conflict', ours: [], base: ['original'], theirs: ['b1'] }
+const mergedEmptyOurs: MergedText = { segments: [{ kind: 'common', lines: ['top'] }, emptyOurs], lineEnding: '\n', endsWithLineEnding: true }
 
 describe('parseConflictMarkers', () => {
   it('splits the text into common lines and conflicts with their base lines', () => {
@@ -89,16 +94,71 @@ describe('resolveMerge', () => {
   it('takes a whole side', () => {
     expect(resolveMerge(merged, [setSidePicked(emptyChoice, conflict, 'theirs', true)])).toBe('top\nb1\nbottom\n')
   })
+
+  it('takes a side with no lines, dropping the base lines', () => {
+    expect(resolveMerge(mergedEmptyOurs, [emptyChoice])).toBe('top\noriginal\n')
+    expect(resolveMerge(mergedEmptyOurs, [setSidePicked(emptyChoice, emptyOurs, 'ours', true)])).toBe('top\n')
+  })
+
+  it('adds the other side’s lines to a picked side with no lines', () => {
+    const both = setSidePicked(setSidePicked(emptyChoice, emptyOurs, 'ours', true), emptyOurs, 'theirs', true)
+    expect(resolveMerge(mergedEmptyOurs, [both])).toBe('top\nb1\n')
+  })
+
+  it('leaves an empty file when the only conflict resolves to a side with no lines', () => {
+    const wholeFile: MergedText = { segments: [emptyOurs], lineEnding: '\n', endsWithLineEnding: true }
+    expect(resolveMerge(wholeFile, [setSidePicked(emptyChoice, emptyOurs, 'ours', true)])).toBe('')
+  })
 })
 
 describe('setPicked', () => {
   it('unpicks lines, and the first side stays put while lines remain', () => {
     const both = setPicked(setSidePicked(emptyChoice, conflict, 'ours', true), 'theirs', [0], true)
-    expect(setPicked(both, 'ours', [0], false)).toEqual({ ours: [1], theirs: [0], first: 'ours' })
+    expect(setPicked(both, 'ours', [0], false)).toEqual({ ours: [1], theirs: [0], first: 'ours', emptySidePicked: false })
   })
 
   it('leaves the other side alone when a whole side is picked or unpicked', () => {
     const both = setPicked(setSidePicked(emptyChoice, conflict, 'ours', true), 'theirs', [0], true)
-    expect(setSidePicked(both, conflict, 'ours', false)).toEqual({ ours: [], theirs: [0], first: 'ours' })
+    expect(setSidePicked(both, conflict, 'ours', false)).toEqual({ ours: [], theirs: [0], first: 'ours', emptySidePicked: false })
+  })
+})
+
+describe('setSidePicked on a side with no lines', () => {
+  it('counts as a choice until it is unpicked, leaving the other side alone', () => {
+    const picked = setSidePicked(emptyChoice, emptyOurs, 'ours', true)
+    expect(isChoiceEmpty(picked)).toBe(false)
+    expect(isChoiceEmpty(setSidePicked(picked, emptyOurs, 'ours', false))).toBe(true)
+
+    const withTheirs = setSidePicked(picked, emptyOurs, 'theirs', true)
+    expect(setSidePicked(withTheirs, emptyOurs, 'ours', false).theirs).toEqual([0])
+    expect(setSidePicked(withTheirs, emptyOurs, 'theirs', false).emptySidePicked).toBe(true)
+  })
+})
+
+describe('sidePickState', () => {
+  const none = { checked: false, indeterminate: false }
+  const all = { checked: true, indeterminate: false }
+  const some = { checked: false, indeterminate: true }
+
+  it('follows the picked lines of a side with lines', () => {
+    expect(sidePickState([conflict], [emptyChoice], 'ours')).toEqual(none)
+    expect(sidePickState([conflict], [setPicked(emptyChoice, 'ours', [0], true)], 'ours')).toEqual(some)
+    expect(sidePickState([conflict], [setSidePicked(emptyChoice, conflict, 'ours', true)], 'ours')).toEqual(all)
+  })
+
+  it('is not picked just because a side has no lines', () => {
+    expect(sidePickState([emptyOurs], [emptyChoice], 'ours')).toEqual(none)
+    expect(sidePickState([emptyOurs], [setSidePicked(emptyChoice, emptyOurs, 'ours', true)], 'ours')).toEqual(all)
+  })
+
+  it('combines conflicts with and without lines on that side', () => {
+    const segments = [conflict, emptyOurs]
+    const pickedEmpty = setSidePicked(emptyChoice, emptyOurs, 'ours', true)
+    expect(sidePickState(segments, [emptyChoice, pickedEmpty], 'ours')).toEqual(some)
+    expect(sidePickState(segments, [setSidePicked(emptyChoice, conflict, 'ours', true), pickedEmpty], 'ours')).toEqual(all)
+  })
+
+  it('has nothing to pick without conflicts', () => {
+    expect(sidePickState([], [], 'ours')).toEqual(none)
   })
 })
