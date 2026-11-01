@@ -35,12 +35,11 @@ export function App() {
         <>
           <Toolbar controller={controller} />
           <div className="workspace" style={panelWidths}>
-            {showSidebar && (
-              <>
-                <Sidebar controller={controller} />
-                <ResizeHandle size={sidebar.size} onResize={sidebar.resize} direction={1} />
-              </>
-            )}
+            {/* Hidden rather than unmounted, so it comes back with its scroll position, filter and open sections. */}
+            <div style={{ display: showSidebar ? 'contents' : 'none' }}>
+              <Sidebar controller={controller} />
+              <ResizeHandle size={sidebar.size} onResize={sidebar.resize} direction={1} />
+            </div>
             <main className="center">
               {diff?.kind === 'conflict' ? (
                 <MergeTool key={diff.change.path} controller={controller} change={diff.change} />

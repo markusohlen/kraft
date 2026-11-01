@@ -6,6 +6,7 @@ import { hasUncommittedChanges, type FileChange } from '../../domain/entities'
 import { emptyLibrary, findRepository, type RepositoryLibrary } from '../../domain/repositoryLibrary'
 import { avatarStyles, type AvatarStyle } from './avatars'
 import { openInBrowser } from './browser'
+import type { GraphPlace } from './graphScroll'
 import { kraft } from './kraftClient'
 import { CherryPickPresenter } from './presenters/cherryPickPresenter'
 import { PullRequestPresenter } from './presenters/pullRequestPresenter'
@@ -92,6 +93,7 @@ export function useRepositoryController() {
   /** Initials by default: profile pictures send a hash of every author's email to gravatar.com. */
   const [avatarStyle, setAvatarStyle] = usePreference<AvatarStyle>('kraft.avatarStyle', 'initials', avatarStyles)
   const nextToastId = useRef(1)
+  const graphPlace = useRef<GraphPlace | null>(null)
 
   const dismissToast = useCallback((id: number) => setToasts((current) => current.filter((toast) => toast.id !== id)), [])
 
@@ -248,6 +250,7 @@ export function useRepositoryController() {
     setSelection,
     diff,
     setDiff,
+    graphPlace,
     toasts,
     dismissToast,
     notify,

@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type MouseEvent } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { rowKey, type GraphRow } from '../../../domain/commitGraph'
 import type { RefLabel } from '../../../domain/entities'
 import { checkoutLocal, checkoutRemote, showCommitMenu, showLocalBranchMenu, showRemoteBranchMenu, showStashMenu } from '../actions'
 import { extendSelection, isSelected, selectionFor } from '../commitSelection'
 import { formatFullDate, formatRelativeDate, laneColor, stashSummary } from '../format'
+import { checkedOutName, nextGraphPlace } from '../graphScroll'
 import type { RepositoryController } from '../useRepositoryController'
 import { usePanelSize } from '../usePanelSize'
 import { ResizeHandle } from './ResizeHandle'
@@ -19,8 +20,9 @@ const maxGraphLanes = 14
 export function CommitGraphView({ controller }: { controller: RepositoryController }) {
   const view = controller.view!
   const { rows, laneCount } = view.graph
+  const { graphPlace } = controller
   const scrollRef = useRef<HTMLDivElement>(null)
-  const [scrollTop, setScrollTop] = useState(0)
+  const [scrollTop, setScrollTop] = useState(graphPlace.current?.scrollTop ?? 0)
   const [viewportHeight, setViewportHeight] = useState(800)
   const refsColumn = usePanelSize('kraft.refsColumnWidth', { initial: 200, min: 90, max: 480 })
   const authorColumn = usePanelSize('kraft.authorColumnWidth', { initial: 140, min: 60, max: 320 })
@@ -38,6 +40,22 @@ export function CommitGraphView({ controller }: { controller: RepositoryControll
     observer.observe(element)
     return () => observer.disconnect()
   }, [])
+
+  // A layout effect, so a restored position or a checked-out commit shows without first painting the old rows.
+  // Only these two values move the graph; every other refresh leaves it where the user scrolled it.
+  const checkedOut = checkedOutName(view)
+  useLayoutEffect(() => {
+    const element = scrollRef.current
+    if (!element) return
+    graphPlace.current = nextGraphPlace(graphPlace.current, view, { height: element.clientHeight, rowHeight })
+    element.scrollTop = graphPlace.current.scrollTop
+    setScrollTop(element.scrollTop)
+  }, [view.path, checkedOut])
+
+  const followScroll = (element: HTMLDivElement) => {
+    setScrollTop(element.scrollTop)
+    if (graphPlace.current) graphPlace.current.scrollTop = element.scrollTop
+  }
 
   const width = graphWidth(Math.min(laneCount, maxGraphLanes))
   const first = Math.max(0, Math.floor(scrollTop / rowHeight) - overscanRows)
@@ -64,7 +82,7 @@ export function CommitGraphView({ controller }: { controller: RepositoryControll
           Date
         </div>
       </div>
-      <div className="graph-scroll" ref={scrollRef} onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}>
+      <div className="graph-scroll" ref={scrollRef} onScroll={(event) => followScroll(event.currentTarget)}>
         {rows.length === 0 && <div className="empty-state">This repository has no commits yet.</div>}
         <div style={{ height: rows.length * rowHeight, position: 'relative' }}>
           {visibleIndexes.map((index) => (
