@@ -1,4 +1,4 @@
-import type { DiffLine, ParsedDiff } from './diff'
+import { toSplitRows, type DiffLine, type ParsedDiff } from './diff'
 
 /** Changed lines picked in a diff: removed lines by their old line number, added lines by their new one. */
 export interface LineSelection {
@@ -23,6 +23,16 @@ export function selectionOf(lines: readonly (DiffLine | null)[]): LineSelection 
 
 export function isEmptySelection({ removed, added }: LineSelection): boolean {
   return removed.length === 0 && added.length === 0
+}
+
+/** How many lines a selection is to the reader: a removed line and the added line replacing it are one row, and one line. */
+export function selectedLineCount(diff: ParsedDiff, selection: LineSelection): number {
+  const removed = new Set(selection.removed)
+  const added = new Set(selection.added)
+  const isSelected = (line: DiffLine | null) =>
+    line?.kind === 'removed' ? removed.has(line.oldNumber ?? 0) : line?.kind === 'added' && added.has(line.newNumber ?? 0)
+  const rows = diff.hunks.flatMap(toSplitRows)
+  return rows.filter((row) => row.kind === 'pair' && (isSelected(row.left) || isSelected(row.right))).length
 }
 
 /** Why a file's text can't be rewritten safely; null when it can. Git's output is read as UTF-8, so other encodings would come back damaged. */

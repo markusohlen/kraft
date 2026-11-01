@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { parseUnifiedDiff, type DiffLine } from '../../src/domain/diff'
-import { reasonTextCannotBeRewritten, selectionOf, withSelectedChanges, isEmptySelection } from '../../src/domain/lineChanges'
+import { reasonTextCannotBeRewritten, selectedLineCount, selectionOf, withSelectedChanges, isEmptySelection } from '../../src/domain/lineChanges'
 
 const noneSelected = { removed: [], added: [] }
 
@@ -157,6 +157,28 @@ describe('selectionOf', () => {
     const context: DiffLine = lines[0]
 
     expect(isEmptySelection(selectionOf([context, null]))).toBe(true)
+  })
+})
+
+describe('selectedLineCount', () => {
+  // b is replaced by B with C added after it, and x is added further down.
+  const diff = parseUnifiedDiff(['@@ -1,5 +1,7 @@', ' a', '-b', '+B', '+C', ' c', ' d', '+x', ' e', ''].join('\n'))
+
+  it('counts a replaced line once when both of its sides are selected', () => {
+    expect(selectedLineCount(diff, { removed: [2], added: [2] })).toBe(1)
+  })
+
+  it('counts one side of a replaced line once', () => {
+    expect(selectedLineCount(diff, { removed: [2], added: [] })).toBe(1)
+    expect(selectedLineCount(diff, { removed: [], added: [2] })).toBe(1)
+  })
+
+  it('counts an added line with no line opposite it separately', () => {
+    expect(selectedLineCount(diff, { removed: [2], added: [2, 3] })).toBe(2)
+  })
+
+  it('does not pair changes from different places', () => {
+    expect(selectedLineCount(diff, { removed: [2], added: [6] })).toBe(2)
   })
 })
 

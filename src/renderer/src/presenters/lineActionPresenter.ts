@@ -1,8 +1,8 @@
 import type { KraftApi } from '../../../application/kraftApi'
 import type { LineAction } from '../../../application/lineOperations'
-import type { DiffLine, DiffOptions } from '../../../domain/diff'
+import { parseUnifiedDiff, type DiffLine, type DiffOptions } from '../../../domain/diff'
 import type { FileChange } from '../../../domain/entities'
-import { isEmptySelection, selectionOf, type LineSelection } from '../../../domain/lineChanges'
+import { isEmptySelection, selectedLineCount, selectionOf, type LineSelection } from '../../../domain/lineChanges'
 
 export type LineActionApi = Pick<KraftApi, 'changeLines'>
 
@@ -39,8 +39,8 @@ export function linesForAction(rows: readonly (readonly (DiffLine | null)[])[], 
   return selectionOf(covered.flatMap((row) => rows[row] ?? []))
 }
 
-function lineCountText({ removed, added }: LineSelection): string {
-  const count = removed.length + added.length
+function lineCountText(shownDiff: string, selection: LineSelection): string {
+  const count = selectedLineCount(parseUnifiedDiff(shownDiff), selection)
   return count === 1 ? 'line' : `${count} lines`
 }
 
@@ -53,7 +53,7 @@ export class LineActionPresenter {
 
   menuItems(target: LineActionTarget): LineMenuItem[] {
     if (isEmptySelection(target.selection)) return []
-    const lines = lineCountText(target.selection)
+    const lines = lineCountText(target.shownDiff, target.selection)
     if (target.staged) return [{ label: `Unstage ${lines}`, onSelect: () => this.act('unstage', target) }]
     return [
       { label: `Stage ${lines}`, onSelect: () => this.act('stage', target) },

@@ -4,7 +4,8 @@ import { parseUnifiedDiff } from '../../src/domain/diff'
 import type { LineSelection } from '../../src/domain/lineChanges'
 import { LineActionPresenter, linesForAction, type LineActionTarget } from '../../src/renderer/src/presenters/lineActionPresenter'
 
-const [context, removed, added, secondAdded] = parseUnifiedDiff(['@@ -1,2 +1,3 @@', ' a', '-b', '+B', '+C', ''].join('\n')).hunks[0].lines
+const shownDiff = ['@@ -1,2 +1,3 @@', ' a', '-b', '+B', '+C', ''].join('\n')
+const [context, removed, added, secondAdded] = parseUnifiedDiff(shownDiff).hunks[0].lines
 const rows = [[context], [removed], [added], [secondAdded]]
 
 describe('linesForAction', () => {
@@ -55,7 +56,7 @@ describe('LineActionPresenter', () => {
     const target = (selection: LineSelection, staged = false): LineActionTarget => ({
       change: { path: 'file.txt', oldPath: null, status: 'modified' },
       staged,
-      shownDiff: 'the diff',
+      shownDiff,
       options: { fullFile: false },
       selection,
       onDone
@@ -89,7 +90,15 @@ describe('LineActionPresenter', () => {
   it('offers only unstage for a staged diff', () => {
     const { presenter, target } = setUp()
 
-    expect(presenter.menuItems(target({ removed: [2], added: [2] }, true)).map((item) => item.label)).toEqual(['Unstage 2 lines'])
+    expect(presenter.menuItems(target({ removed: [], added: [2] }, true)).map((item) => item.label)).toEqual(['Unstage line'])
+  })
+
+  it('calls a replaced line one line, though both of its sides change', () => {
+    const { presenter, target } = setUp()
+
+    const items = presenter.menuItems(target({ removed: [2], added: [2] }))
+
+    expect(items.map((item) => item.label)).toEqual(['Stage line', 'Discard line'])
   })
 
   it('stages what was picked in the diff that was shown, then reloads', async () => {
@@ -103,7 +112,7 @@ describe('LineActionPresenter', () => {
       {
         action: 'stage',
         change: { path: 'file.txt', oldPath: null, status: 'modified' },
-        shownDiff: 'the diff',
+        shownDiff,
         options: { fullFile: false },
         selection: { removed: [], added: [2] }
       }
