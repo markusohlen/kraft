@@ -4,7 +4,7 @@ import { isAbsolute, join, relative, resolve } from 'node:path'
 import type { DiffOptions } from '../domain/diff'
 import type { Branch, Commit, FileChange, Stash, WorkingTreeStatus } from '../domain/entities'
 import type { CommitAuthor, ConflictVersions, GitRepository, GitRepositoryFactory, MergeOptions } from '../application/ports'
-import { runGit, type GitCommandOptions } from './gitCommand'
+import { GitCommandError, runGit, type GitCommandOptions } from './gitCommand'
 import {
   branchFormat,
   lines,
@@ -53,6 +53,15 @@ function backgroundFetchEnvironment(hasOwnSshCommand: boolean): Record<string, s
     // Someone's own SSH command is left as it is, as it may not be OpenSSH; the timeout covers it.
     ...(hasOwnSshCommand ? {} : { GIT_SSH_COMMAND: 'ssh -o BatchMode=yes' })
   }
+}
+
+/** Exit code git uses when it does not understand its arguments, whatever the language of its message. */
+const usageErrorExitCode = 129
+
+/** Git's own message for an option it doesn't know is a usage listing, which says nothing about upgrading. */
+export function explainBackgroundFetchFailure(error: unknown): unknown {
+  const tooOldForItsOptions = error instanceof GitCommandError && error.exitCode === usageErrorExitCode
+  return tooOldForItsOptions ? new Error('Automatic fetch needs git 2.29 or newer. Fetching by hand still works.') : error
 }
 
 function assertSha(sha: string): string {
@@ -358,6 +367,8 @@ export class GitCliRepository implements GitRepository {
     await this.run(['fetch', '--all', '--prune', '--no-write-fetch-head', '--no-recurse-submodules', '--no-auto-maintenance'], {
       env: backgroundFetchEnvironment(hasOwnSshCommand),
       timeoutMs: backgroundFetchTimeoutMs
+    }).catch((error: unknown) => {
+      throw explainBackgroundFetchFailure(error)
     })
   }
 

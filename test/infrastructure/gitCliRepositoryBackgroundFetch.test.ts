@@ -1,6 +1,7 @@
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { explainBackgroundFetchFailure } from '../../src/infrastructure/gitCliRepository'
 import { runGit } from '../../src/infrastructure/gitCommand'
 import { createTestRepository, type TestRepository } from '../application/gitTestRepository'
 
@@ -32,6 +33,18 @@ describe('fetching without anyone there to answer', () => {
     await expect(test.repository.fetchInBackground()).rejects.toThrow()
 
     expect(credentialChallenges).toBeGreaterThan(0)
+  })
+
+  it('says which git is needed when git does not know an option, as before 2.29', async () => {
+    const unknownOption = await runGit(test.path, ['fetch', '--no-such-option']).catch((error: unknown) => error)
+
+    expect(explainBackgroundFetchFailure(unknownOption)).toEqual(new Error('Automatic fetch needs git 2.29 or newer. Fetching by hand still works.'))
+  })
+
+  it('keeps the reason of any other failure', async () => {
+    const otherFailure = await runGit(test.path, ['fetch', 'no-such-remote']).catch((error: unknown) => error)
+
+    expect(explainBackgroundFetchFailure(otherFailure)).toBe(otherFailure)
   })
 
   it('gives up after the time limit with a clear reason', async () => {
