@@ -501,11 +501,6 @@ body.resizing-rows * {
   flex: 1;
 }
 
-.settings-button {
-  align-self: center;
-  font-size: 15px;
-}
-
 /* Shown in the tab bar once an update has been downloaded. */
 .update-button {
   align-self: center;
@@ -2070,6 +2065,14 @@ body.resizing-rows * {
 .unstage-button {
   background: var(--danger);
   color: white;
+}
+
+.file-filter {
+  display: block;
+  flex-shrink: 0;
+  width: calc(100% - 28px);
+  margin: 8px 14px 2px;
+  font-size: 12px;
 }
 
 .file-list {

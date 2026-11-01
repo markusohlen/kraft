@@ -38,6 +38,11 @@ export function extendFileSelection(
   return { staged, paths, anchor: current.anchor }
 }
 
+/** A lone file is selected because its diff was open, so it goes with the diff; several stay for the section buttons to act on. */
+export function selectionAfterDiffClosed(selection: FileSelection | null): FileSelection | null {
+  return selection && selection.paths.length > 1 ? selection : null
+}
+
 /** The selected files still in the list, in list order; files staged or discarded since drop out. */
 export function selectedPaths(selection: FileSelection | null, staged: boolean, listPaths: readonly string[]): string[] {
   if (selection?.staged !== staged) return []

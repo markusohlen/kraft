@@ -41,6 +41,14 @@ export interface GitRepository {
   remove(paths: string[]): Promise<void>
   /** Overwrites a file in the working tree. */
   writeWorkingFile(path: string, content: string): Promise<void>
+  /** A file's text in the working tree, with nothing converted. */
+  readWorkingFile(path: string): Promise<string>
+  /** A file's text in the index, as git stores it. */
+  indexFileText(path: string): Promise<string>
+  /** A file's mode in the index, such as 100644; null when it is not there. */
+  indexEntryMode(path: string): Promise<string | null>
+  /** Replaces a file in the index with content, stored as given, without touching the working tree. */
+  writeIndexFile(path: string, mode: string, content: string): Promise<void>
   conflictVersions(path: string): Promise<ConflictVersions>
   /** HEAD's commit; null before the first commit. */
   headCommit(): Promise<string | null>
@@ -99,6 +107,8 @@ export interface GitRepository {
   stashUntrackedFileDiff(sha: string, path: string, options: DiffOptions): Promise<string>
 
   fetch(): Promise<void>
+  /** Fetches all remotes for nobody in particular: it fails rather than ask for credentials, and gives up if it takes too long. */
+  fetchInBackground(): Promise<void>
   /** Fetches one branch, updating its remote-tracking branch. */
   fetchBranch(remote: string, branch: string): Promise<void>
   pull(): Promise<void>

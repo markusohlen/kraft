@@ -13,6 +13,10 @@ export interface GitCommandOptions {
   acceptedExitCodes?: number[]
   /** Extra environment variables, such as `GIT_AUTHOR_NAME` for a commit made on someone's behalf. */
   env?: Record<string, string>
+  /** Kills git after this long, for a command nobody is waiting on. */
+  timeoutMs?: number
+  /** Text git reads as its input. */
+  stdin?: string
 }
 
 const maxOutputMebibytes = 128
@@ -80,13 +84,17 @@ function resolveGitPath(): Promise<string> {
 export async function runGit(cwd: string, args: string[], options: GitCommandOptions = {}): Promise<GitCommandResult> {
   const gitPath = await resolveGitPath()
   return new Promise((resolve, reject) => {
-    execFile(
+    const child = execFile(
       gitPath,
       [...hardeningConfig, ...args],
-      { cwd, env: { ...gitEnvironment, ...options.env }, maxBuffer: maxOutputBytes, windowsHide: true },
+      { cwd, env: { ...gitEnvironment, ...options.env }, maxBuffer: maxOutputBytes, windowsHide: true, timeout: options.timeoutMs ?? 0 },
       (error, stdout, stderr) => {
         if (error?.code === 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER') {
           reject(new Error(`git ${args[0]} produced more than ${maxOutputMebibytes} MiB of output, which is too much to show`))
+          return
+        }
+        if (error?.killed) {
+          reject(new Error(`git ${args[0]} did not finish within ${(options.timeoutMs ?? 0) / 1000} seconds`))
           return
         }
         if (error && typeof error.code !== 'number') {
@@ -103,5 +111,10 @@ export async function runGit(cwd: string, args: string[], options: GitCommandOpt
         reject(new GitCommandError(args, exitCode, [stderr.trim(), stdout.trim()].filter(Boolean).join('\n')))
       }
     )
+    if (options.stdin !== undefined && child.stdin) {
+      // Git may exit without reading it all; the exit is reported above, and the broken pipe must not crash the app.
+      child.stdin.on('error', () => undefined)
+      child.stdin.end(options.stdin)
+    }
   })
 }

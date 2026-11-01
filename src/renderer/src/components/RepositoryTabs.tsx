@@ -72,9 +72,6 @@ export function RepositoryTabs({ controller }: { controller: RepositoryControlle
             Restart to update to {controller.appUpdate.update.status.version}
           </button>
         )}
-        <button className="icon-button settings-button" title="Settings" onClick={controller.openSettings}>
-          ⚙
-        </button>
       </div>
       {openFolder && (
         <div className="repo-tabs sub-tabs" {...drag.rowTarget(openFolder.id)}>

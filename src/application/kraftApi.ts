@@ -5,6 +5,7 @@ import type { GitFlowBranch, GitFlowBranchType, GitFlowConfig } from '../domain/
 import type { AutoStashResult } from './autoStash'
 import type { RemoteCheckoutResult } from './branchOperations'
 import type { MergeConflict } from './conflictOperations'
+import type { LineChangeRequest } from './lineOperations'
 import type { FinishGitFlowOptions, FinishGitFlowResult } from './gitFlowOperations'
 import type { PullRequestPage } from './pullRequestOperations'
 import type { SquashPlan, SquashResult } from './squashOperations'
@@ -45,6 +46,8 @@ export interface KraftApi {
   stage(paths: string[]): Promise<void>
   unstage(paths: string[]): Promise<void>
   discard(changes: FileChange[]): Promise<void>
+  /** Stages, unstages or discards single changed lines of a modified file; refuses when the file changed since shownDiff. */
+  changeLines(request: LineChangeRequest): Promise<void>
   commit(message: string): Promise<void>
   /** The full message of HEAD's commit, to edit when amending; null before the first commit. */
   headCommitMessage(): Promise<string | null>
@@ -72,6 +75,8 @@ export interface KraftApi {
   stashDrop(index: number): Promise<void>
 
   fetch(): Promise<void>
+  /** Fetches without the user having asked: never prompts for credentials. Only one runs at a time. */
+  fetchInBackground(): Promise<void>
   pull(): Promise<AutoStashResult>
   push(): Promise<void>
   /** Replaces a local branch's upstream with it, refusing when that would drop commits not seen locally. */
@@ -98,6 +103,7 @@ export const kraftMethods: readonly KraftMethod[] = [
   'stage',
   'unstage',
   'discard',
+  'changeLines',
   'commit',
   'headCommitMessage',
   'amendCommit',
@@ -117,6 +123,7 @@ export const kraftMethods: readonly KraftMethod[] = [
   'stashApply',
   'stashDrop',
   'fetch',
+  'fetchInBackground',
   'pull',
   'push',
   'forcePush',

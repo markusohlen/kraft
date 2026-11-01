@@ -9,11 +9,12 @@ import type { RepositoryController } from '../useRepositoryController'
 import { FolderIcon, RepositoryIcon } from './Icons'
 import { JiraColumnsDialog } from './JiraColumnsDialog'
 
-type SettingsPage = 'repositories' | 'appearance' | 'jira' | 'updates'
+type SettingsPage = 'repositories' | 'appearance' | 'fetching' | 'jira' | 'updates'
 
 const pages: { id: SettingsPage; label: string }[] = [
   { id: 'repositories', label: 'Repositories' },
   { id: 'appearance', label: 'Appearance' },
+  { id: 'fetching', label: 'Fetching' },
   { id: 'jira', label: 'Jira' },
   { id: 'updates', label: 'Updates' }
 ]
@@ -64,6 +65,8 @@ export function SettingsDialog({ controller, onClose }: { controller: Repository
                 <RepositoriesPage controller={controller} />
               ) : page === 'appearance' ? (
                 <AppearancePage controller={controller} />
+              ) : page === 'fetching' ? (
+                <FetchingPage controller={controller} />
               ) : page === 'updates' ? (
                 <UpdatesPage controller={controller} />
               ) : (
@@ -266,6 +269,21 @@ function AppearancePage({ controller }: { controller: RepositoryController }) {
         </label>
       ))}
     </fieldset>
+  )
+}
+
+function FetchingPage({ controller }: { controller: RepositoryController }) {
+  return (
+    <div>
+      <label className="checkbox-field">
+        <input type="checkbox" checked={controller.autoFetch} onChange={(event) => controller.setAutoFetch(event.target.checked)} />
+        Fetch from remotes automatically
+      </label>
+      <p className="muted small">
+        Every couple of minutes while Kraft is visible, so branches and commits others push show up by themselves. It never asks for credentials: when a fetch
+        fails, Kraft marks the Fetch button and tries again later.
+      </p>
+    </div>
   )
 }
 
