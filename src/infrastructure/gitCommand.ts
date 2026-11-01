@@ -15,6 +15,8 @@ export interface GitCommandOptions {
   env?: Record<string, string>
   /** Kills git after this long, for a command nobody is waiting on. */
   timeoutMs?: number
+  /** Text git reads as its input. */
+  stdin?: string
 }
 
 const maxOutputMebibytes = 128
@@ -82,7 +84,7 @@ function resolveGitPath(): Promise<string> {
 export async function runGit(cwd: string, args: string[], options: GitCommandOptions = {}): Promise<GitCommandResult> {
   const gitPath = await resolveGitPath()
   return new Promise((resolve, reject) => {
-    execFile(
+    const child = execFile(
       gitPath,
       [...hardeningConfig, ...args],
       { cwd, env: { ...gitEnvironment, ...options.env }, maxBuffer: maxOutputBytes, windowsHide: true, timeout: options.timeoutMs ?? 0 },
@@ -109,5 +111,10 @@ export async function runGit(cwd: string, args: string[], options: GitCommandOpt
         reject(new GitCommandError(args, exitCode, [stderr.trim(), stdout.trim()].filter(Boolean).join('\n')))
       }
     )
+    if (options.stdin !== undefined && child.stdin) {
+      // Git may exit without reading it all; the exit is reported above, and the broken pipe must not crash the app.
+      child.stdin.on('error', () => undefined)
+      child.stdin.end(options.stdin)
+    }
   })
 }

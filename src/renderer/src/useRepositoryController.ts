@@ -10,6 +10,7 @@ import { kraft } from './kraftClient'
 import { LatestRequest } from './latestRequest'
 import { BackgroundFetchPresenter } from './presenters/backgroundFetchPresenter'
 import { CherryPickPresenter } from './presenters/cherryPickPresenter'
+import { LineActionPresenter } from './presenters/lineActionPresenter'
 import { PullRequestPresenter } from './presenters/pullRequestPresenter'
 import { RemoteBranchPresenter } from './presenters/remoteBranchPresenter'
 import { SquashPresenter } from './presenters/squashPresenter'
@@ -192,6 +193,11 @@ export function useRepositoryController() {
         showFetchFailure: (path, message) => setFetchFailures((current) => withFetchFailure(current, path, message))
       }),
       cherryPick: new CherryPickPresenter(kraft, { run, notify }),
+      lineAction: new LineActionPresenter(kraft, {
+        run,
+        confirmDiscard: (title, onConfirm) =>
+          setDialog({ title, description: 'This cannot be undone.', fields: [], confirmLabel: 'Discard', danger: true, onSubmit: onConfirm })
+      }),
       remoteBranch: new RemoteBranchPresenter(kraft, { run, notify }),
       squash: new SquashPresenter(kraft, {
         run,

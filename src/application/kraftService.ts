@@ -24,6 +24,7 @@ import {
   type FinishGitFlowOptions
 } from './gitFlowOperations'
 import type { CommitDetails, KraftApi, RepositoryView } from './kraftApi'
+import { changeLines, type LineChangeRequest } from './lineOperations'
 import type { GitRepository, GitRepositoryFactory } from './ports'
 import { createPullRequest } from './pullRequestOperations'
 import { planSquash, squashCommits } from './squashOperations'
@@ -133,6 +134,10 @@ export class KraftService implements KraftApi {
 
   discard(changes: FileChange[]): Promise<void> {
     return this.requireRepository().discard(changes)
+  }
+
+  changeLines(request: LineChangeRequest): Promise<void> {
+    return changeLines(this.requireRepository(), request)
   }
 
   async commit(message: string): Promise<void> {
