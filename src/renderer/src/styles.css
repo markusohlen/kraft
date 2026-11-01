@@ -2072,6 +2072,14 @@ body.resizing-rows * {
   color: white;
 }
 
+.file-filter {
+  display: block;
+  flex-shrink: 0;
+  width: calc(100% - 28px);
+  margin: 8px 14px 2px;
+  font-size: 12px;
+}
+
 .file-list {
   list-style: none;
   margin: 0;
