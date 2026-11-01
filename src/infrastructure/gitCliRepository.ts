@@ -4,7 +4,7 @@ import { isAbsolute, join, relative, resolve } from 'node:path'
 import type { DiffOptions } from '../domain/diff'
 import type { Branch, Commit, FileChange, Stash, WorkingTreeStatus } from '../domain/entities'
 import type { CommitAuthor, ConflictVersions, GitRepository, GitRepositoryFactory, MergeOptions } from '../application/ports'
-import { runGit, type GitCommandOptions } from './gitCommand'
+import { GitCommandError, runGit, type GitCommandOptions } from './gitCommand'
 import {
   branchFormat,
   lines,
@@ -36,6 +36,33 @@ const endOfOptions = '--end-of-options'
  * Kraft parses git's own unified diff, so neither is wanted when producing a patch.
  */
 const noDiffCommands = ['--no-ext-diff', '--no-textconv']
+
+/** How long a fetch nobody asked for may take; a hung connection must not keep it going. */
+const backgroundFetchTimeoutMs = 2 * 60 * 1000
+
+/**
+ * Makes a fetch fail rather than ask for anything. GIT_TERMINAL_PROMPT=0 is already set for every command,
+ * but Git Credential Manager has its own windows, and askpass programs and SSH have their own prompts.
+ * Empty askpass variables stop git falling back on a configured askpass program.
+ */
+function backgroundFetchEnvironment(hasOwnSshCommand: boolean): Record<string, string> {
+  return {
+    GCM_INTERACTIVE: 'never',
+    GIT_ASKPASS: '',
+    SSH_ASKPASS: '',
+    // Someone's own SSH command is left as it is, as it may not be OpenSSH; the timeout covers it.
+    ...(hasOwnSshCommand ? {} : { GIT_SSH_COMMAND: 'ssh -o BatchMode=yes' })
+  }
+}
+
+/** Exit code git uses when it does not understand its arguments, whatever the language of its message. */
+const usageErrorExitCode = 129
+
+/** Git's own message for an option it doesn't know is a usage listing, which says nothing about upgrading. */
+export function explainBackgroundFetchFailure(error: unknown): unknown {
+  const tooOldForItsOptions = error instanceof GitCommandError && error.exitCode === usageErrorExitCode
+  return tooOldForItsOptions ? new Error('Automatic fetch needs git 2.29 or newer. Fetching by hand still works.') : error
+}
 
 function assertSha(sha: string): string {
   if (!/^[0-9a-f]{4,64}$/i.test(sha)) throw new Error(`"${sha}" is not a valid commit id`)
@@ -140,6 +167,30 @@ export class GitCliRepository implements GitRepository {
 
   async writeWorkingFile(path: string, content: string): Promise<void> {
     await writeFile(this.pathInside(path), content)
+  }
+
+  async readWorkingFile(path: string): Promise<string> {
+    return readFile(this.pathInside(path), 'utf8')
+  }
+
+  async indexFileText(path: string): Promise<string> {
+    // cat-file does not run textconv, so this is the stored text.
+    return this.git(['cat-file', 'blob', endOfOptions, `:0:${path}`])
+  }
+
+  async indexEntryMode(path: string): Promise<string | null> {
+    for (const entry of (await this.git(['ls-files', '--stage', '-z', '--', path])).split('\0').filter(Boolean)) {
+      // "<mode> <sha> <stage>\t<path>"; the path is checked because a pathspec can match others.
+      const tab = entry.indexOf('\t')
+      if (entry.slice(tab + 1) === path) return entry.slice(0, entry.indexOf(' '))
+    }
+    return null
+  }
+
+  async writeIndexFile(path: string, mode: string, content: string): Promise<void> {
+    // The text is already in the form git stores, so clean filters and line ending conversion must not run again.
+    const { stdout } = await this.run(['hash-object', '-w', '--stdin', '--no-filters'], { stdin: content })
+    await this.git(['update-index', '--add', '--cacheinfo', `${mode},${assertSha(stdout.trim())},${path}`])
   }
 
   async conflictVersions(path: string): Promise<ConflictVersions> {
@@ -332,6 +383,17 @@ export class GitCliRepository implements GitRepository {
 
   async fetch(): Promise<void> {
     await this.git(['fetch', '--all', '--prune'])
+  }
+
+  async fetchInBackground(): Promise<void> {
+    const hasOwnSshCommand = Boolean(process.env.GIT_SSH_COMMAND || process.env.GIT_SSH || (await this.getConfig('core.sshCommand')))
+    // FETCH_HEAD is what a git pull in a terminal is about to read, and maintenance would compete with the user's commands.
+    await this.run(['fetch', '--all', '--prune', '--no-write-fetch-head', '--no-recurse-submodules', '--no-auto-maintenance'], {
+      env: backgroundFetchEnvironment(hasOwnSshCommand),
+      timeoutMs: backgroundFetchTimeoutMs
+    }).catch((error: unknown) => {
+      throw explainBackgroundFetchFailure(error)
+    })
   }
 
   async fetchBranch(remote: string, branch: string): Promise<void> {

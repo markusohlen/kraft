@@ -6,6 +6,7 @@ import { checkoutLocal, checkoutRemote, showCommitMenu, showLocalBranchMenu, sho
 import { extendSelection, isSelected, selectionFor } from '../commitSelection'
 import { formatFullDate, formatRelativeDate, laneColor, stashSummary } from '../format'
 import { checkedOutName, nextGraphPlace } from '../graphScroll'
+import { scrollTopKeepingRows } from '../graphAnchor'
 import type { RepositoryController } from '../useRepositoryController'
 import { usePanelSize } from '../usePanelSize'
 import { ResizeHandle } from './ResizeHandle'
@@ -56,6 +57,19 @@ export function CommitGraphView({ controller }: { controller: RepositoryControll
     setScrollTop(element.scrollTop)
     if (graphPlace.current) graphPlace.current.scrollTop = element.scrollTop
   }
+
+  // A layout effect, so the rows never paint in their shifted place first.
+  const previousView = useRef(view)
+  useLayoutEffect(() => {
+    const before = previousView.current
+    previousView.current = view
+    const element = scrollRef.current
+    if (!element) return
+    const next = scrollTopKeepingRows(before, view, element.scrollTop, rowHeight)
+    if (next === element.scrollTop) return
+    element.scrollTop = next
+    setScrollTop(element.scrollTop)
+  }, [view])
 
   const width = graphWidth(Math.min(laneCount, maxGraphLanes))
   const first = Math.max(0, Math.floor(scrollTop / rowHeight) - overscanRows)

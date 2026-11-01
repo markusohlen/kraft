@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { parseUnifiedDiff, toSplitRows, type DiffLine, type DiffOptions, type ParsedDiff } from '../../../domain/diff'
 import { highlightDiff, withChangedText } from '../diffHighlight'
 import { overviewMarks, type OverviewMarkKind } from '../diffOverview'
 import { kraft } from '../kraftClient'
+import { linesForAction } from '../presenters/lineActionPresenter'
 import { languageFor, type HighlightedLine } from '../syntaxHighlight'
 import { usePreference } from '../usePreference'
 import type { FileDiffTarget, RepositoryController } from '../useRepositoryController'
@@ -30,9 +31,11 @@ export function DiffView({ controller, target }: { controller: RepositoryControl
   const [error, setError] = useState<string | null>(null)
   const [currentChange, setCurrentChange] = useState(-1)
   const bodyRef = useRef<HTMLDivElement>(null)
+  const jumpedToFirstChange = useRef(false)
 
   useEffect(() => {
     let current = true
+    jumpedToFirstChange.current = false
     setDiffText(null)
     setError(null)
     setCurrentChange(-1)
@@ -58,13 +61,43 @@ export function DiffView({ controller, target }: { controller: RepositoryControl
     bodyRef.current?.querySelector(`[data-change-start="${index}"]`)?.scrollIntoView({ block: 'center' })
   }, [])
 
-  // With the whole file shown, the first change may be far down; jump to it.
+  // With the whole file shown, the first change may be far down; jump to it, once, so acting on lines keeps the place.
   useEffect(() => {
-    if (fullFile && changeCount > 0) goToChange(0)
+    if (!fullFile || changeCount === 0 || jumpedToFirstChange.current) return
+    jumpedToFirstChange.current = true
+    goToChange(0)
   }, [parsed, fullFile, changeCount, goToChange])
 
-  const subtitle = diffSubtitle(controller, target)
+  /** Shows the file as it now is without clearing the rows, so the scroll position stays; a diff with nothing left closes. */
+  const reloadAfterLineAction = () => {
+    requestDiff(target, { fullFile }).then(
+      (text) => {
+        if (text === '') controller.setDiff(null)
+        else setDiffText(text)
+      },
+      (failure: Error) => setError(failure.message)
+    )
+  }
 
+  // Lines can only be picked in a modified file's working-tree diff, where each side is a whole text.
+  const showLineMenu = (event: MouseEvent) => {
+    if (target.kind !== 'working' || target.change.status !== 'modified' || diffText === null) return
+    const clicked = (event.target as Element).closest<HTMLElement>('[data-row]')
+    if (!clicked || controller.busyLabel !== null) return
+    const items = controller.presenters.lineAction.menuItems({
+      change: target.change,
+      staged: target.staged,
+      shownDiff: diffText,
+      options: { fullFile },
+      selection: linesForAction(rows.map(linesOfRow), Number(clicked.dataset.row), rowsUnderMarkedText(bodyRef.current)),
+      onDone: reloadAfterLineAction
+    })
+    if (items.length === 0) return
+    event.preventDefault()
+    controller.showMenu({ x: event.clientX, y: event.clientY, items })
+  }
+
+  const subtitle = diffSubtitle(controller, target)
   return (
     <div className={`diff ${language ? 'syntax' : ''}`}>
       <div className="diff-header">
@@ -124,7 +157,7 @@ export function DiffView({ controller, target }: { controller: RepositoryControl
         </div>
       </div>
       <div className="diff-body-frame">
-        <div className="diff-body" ref={bodyRef}>
+        <div className="diff-body" ref={bodyRef} onContextMenu={showLineMenu}>
           {error && <div className="empty-state error-text">{error}</div>}
           {parsed === null && !error && <div className="empty-state">Loading diff…</div>}
           {parsed !== null && rows.length === 0 && <div className="empty-state">No textual changes.</div>}
@@ -138,6 +171,24 @@ export function DiffView({ controller, target }: { controller: RepositoryControl
       </div>
     </div>
   )
+}
+
+function linesOfRow(row: Row): (DiffLine | null)[] {
+  if (row.kind === 'line') return [row.line]
+  return row.kind === 'pair' ? [row.left, row.right] : []
+}
+
+/** The changed rows that text marked with the mouse touches. In a split diff, a row counts when either of its sides is marked. */
+function rowsUnderMarkedText(body: HTMLElement | null): number[] {
+  const marked = window.getSelection()
+  if (!body || !marked || marked.isCollapsed) return []
+  const rows = Array.from(body.querySelectorAll<HTMLElement>('[data-row]'))
+  return rows.filter((row) => marked.containsNode(row, true)).map((row) => Number(row.dataset.row))
+}
+
+/** Marks a changed row for the line actions. */
+function changedRow(row: { change: number | null }, index: number) {
+  return row.change !== null ? { 'data-row': index } : {}
 }
 
 function requestDiff(target: FileDiffTarget, options: DiffOptions): Promise<string> {
@@ -162,7 +213,7 @@ function UnifiedTable({ rows, highlights, currentChange }: { rows: Row[]; highli
           if (row.kind !== 'line') return null
           const { line } = row
           return (
-            <tr key={index} className={`diff-line ${line.kind} ${row.change === currentChange ? 'current-change' : ''}`} {...changeStart(row)}>
+            <tr key={index} className={`diff-line ${line.kind} ${row.change === currentChange ? 'current-change' : ''}`} {...changeStart(row)} {...changedRow(row, index)}>
               <td className="line-number">{line.oldNumber ?? ''}</td>
               <td className="line-number">{line.newNumber ?? ''}</td>
               <td className="line-text">
@@ -215,6 +266,7 @@ function SplitPane({ rows, highlights, currentChange, side }: SplitPaneProps) {
                 key={index}
                 className={`split-row ${kind} ${row.change === currentChange ? 'current-change' : ''}`}
                 {...(side === 'old' ? changeStart(row) : {})}
+                {...changedRow(row, index)}
               >
                 <td className="line-number">{(side === 'old' ? line?.oldNumber : line?.newNumber) ?? ''}</td>
                 <td className="line-text">{line ? <LineText line={line} highlights={highlights} /> : null}</td>

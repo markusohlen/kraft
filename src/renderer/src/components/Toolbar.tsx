@@ -23,7 +23,23 @@ export function Toolbar({ controller }: { controller: RepositoryController }) {
       </div>
 
       <div className="toolbar-group toolbar-actions">
-        <ToolbarButton icon="⟲" label="Fetch" disabled={busy} onClick={() => void controller.run('Fetching', () => kraft.fetch(), 'Fetched all remotes')} />
+        <ToolbarButton
+          icon="⟲"
+          label="Fetch"
+          badge={controller.fetchFailure ? '!' : undefined}
+          title={controller.fetchFailure ? `Automatic fetch failed; Kraft keeps trying.\n${controller.fetchFailure}` : undefined}
+          disabled={busy}
+          onClick={() =>
+            void controller.run(
+              'Fetching',
+              async () => {
+                await kraft.fetch()
+                controller.presenters.backgroundFetch.fetchSucceeded(view.path)
+              },
+              'Fetched all remotes'
+            )
+          }
+        />
         <ToolbarButton
           icon="↓"
           label="Pull"
@@ -57,6 +73,7 @@ export function Toolbar({ controller }: { controller: RepositoryController }) {
 
       <div className="toolbar-group">
         <ToolbarButton icon="↻" label="Refresh" disabled={busy} onClick={() => void controller.refresh()} />
+        <ToolbarButton icon="⚙" label="Settings" onClick={controller.openSettings} />
       </div>
     </header>
   )
@@ -65,14 +82,15 @@ export function Toolbar({ controller }: { controller: RepositoryController }) {
 interface ToolbarButtonProps {
   icon: string
   label: string
-  badge?: number
+  badge?: number | string
+  title?: string
   disabled?: boolean
   onClick: () => void
 }
 
-function ToolbarButton({ icon, label, badge, disabled, onClick }: ToolbarButtonProps) {
+function ToolbarButton({ icon, label, badge, title, disabled, onClick }: ToolbarButtonProps) {
   return (
-    <button className="toolbar-button" disabled={disabled} onClick={onClick}>
+    <button className="toolbar-button" title={title} disabled={disabled} onClick={onClick}>
       <span className="toolbar-icon">
         {icon}
         {badge ? <span className="toolbar-badge">{badge}</span> : null}

@@ -29,6 +29,13 @@ const fileChangeStatuses: readonly FileChangeStatus[] = ['added', 'modified', 'd
 
 const diffOptions = shape({ fullFile: isBoolean })
 const fileChange = shape({ path: isString, oldPath: nullable(isString), status: oneOf(...fileChangeStatuses) })
+const lineChangeRequest = shape({
+  action: oneOf('stage', 'unstage', 'discard'),
+  change: fileChange,
+  shownDiff: isString,
+  options: diffOptions,
+  selection: shape({ removed: arrayOf(isIndex), added: arrayOf(isIndex) })
+})
 const gitFlowConfig = shape({
   mainBranch: isString,
   developBranch: isString,
@@ -66,6 +73,7 @@ const argumentRules: Record<IpcMethod, readonly Rule[]> = {
   stage: [arrayOf(isString)],
   unstage: [arrayOf(isString)],
   discard: [arrayOf(fileChange)],
+  changeLines: [lineChangeRequest],
   commit: [isString],
   headCommitMessage: [],
   amendCommit: [isString],
@@ -85,6 +93,7 @@ const argumentRules: Record<IpcMethod, readonly Rule[]> = {
   stashApply: [isIndex],
   stashDrop: [isIndex],
   fetch: [],
+  fetchInBackground: [],
   pull: [],
   push: [],
   forcePush: [isString],
