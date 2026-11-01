@@ -169,6 +169,30 @@ export class GitCliRepository implements GitRepository {
     await writeFile(this.pathInside(path), content)
   }
 
+  async readWorkingFile(path: string): Promise<string> {
+    return readFile(this.pathInside(path), 'utf8')
+  }
+
+  async indexFileText(path: string): Promise<string> {
+    // cat-file does not run textconv, so this is the stored text.
+    return this.git(['cat-file', 'blob', endOfOptions, `:0:${path}`])
+  }
+
+  async indexEntryMode(path: string): Promise<string | null> {
+    for (const entry of (await this.git(['ls-files', '--stage', '-z', '--', path])).split('\0').filter(Boolean)) {
+      // "<mode> <sha> <stage>\t<path>"; the path is checked because a pathspec can match others.
+      const tab = entry.indexOf('\t')
+      if (entry.slice(tab + 1) === path) return entry.slice(0, entry.indexOf(' '))
+    }
+    return null
+  }
+
+  async writeIndexFile(path: string, mode: string, content: string): Promise<void> {
+    // The text is already in the form git stores, so clean filters and line ending conversion must not run again.
+    const { stdout } = await this.run(['hash-object', '-w', '--stdin', '--no-filters'], { stdin: content })
+    await this.git(['update-index', '--add', '--cacheinfo', `${mode},${assertSha(stdout.trim())},${path}`])
+  }
+
   async conflictVersions(path: string): Promise<ConflictVersions> {
     const versions: ConflictVersions = { base: null, ours: null, theirs: null }
     const stageNames: Record<string, keyof ConflictVersions> = { '1': 'base', '2': 'ours', '3': 'theirs' }
