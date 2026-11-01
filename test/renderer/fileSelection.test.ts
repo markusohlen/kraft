@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { extendFileSelection, selectFile, selectedPaths } from '../../src/renderer/src/fileSelection'
+import { extendFileSelection, selectFile, selectedPaths, selectionAfterDiffClosed } from '../../src/renderer/src/fileSelection'
 
 const unstaged = ['a.ts', 'b.ts', 'c.ts', 'd.ts']
 
@@ -35,6 +35,21 @@ describe('extendFileSelection', () => {
 
   it('starts over when the anchor is no longer in the list', () => {
     expect(extendFileSelection(selectFile(false, 'gone.ts'), false, unstaged, 'c.ts', 'range')).toEqual(selectFile(false, 'c.ts'))
+  })
+})
+
+describe('selectionAfterDiffClosed', () => {
+  it('drops a lone file, so it no longer looks selected and a click opens it again', () => {
+    expect(selectionAfterDiffClosed(selectFile(false, 'a.ts'))).toBeNull()
+  })
+
+  it('keeps several files, for the section buttons to act on', () => {
+    const selection = { staged: false, paths: ['a.ts', 'b.ts'], anchor: 'b.ts' }
+    expect(selectionAfterDiffClosed(selection)).toEqual(selection)
+  })
+
+  it('leaves no selection as it is', () => {
+    expect(selectionAfterDiffClosed(null)).toBeNull()
   })
 })
 

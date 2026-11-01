@@ -21,6 +21,8 @@ export interface FileAction {
 interface FileListProps {
   changes: FileChange[]
   isSelected: (change: FileChange) => boolean
+  /** Whether this file's diff is open, for lists where a selected file need not be showing; by default, being selected. */
+  isOpen?: (change: FileChange) => boolean
   onOpen: (change: FileChange) => void
   /** Called when the file whose diff is open is clicked again. */
   onClose: () => void
@@ -34,11 +36,11 @@ function selectionMode(event: MouseEvent): SelectionMode | null {
   return event.ctrlKey || event.metaKey ? 'toggle' : null
 }
 
-export function FileList({ changes, isSelected, onOpen, onClose, onSelectMore, actions = [] }: FileListProps) {
-  const click = (event: MouseEvent, change: FileChange, selected: boolean) => {
+export function FileList({ changes, isSelected, isOpen = isSelected, onOpen, onClose, onSelectMore, actions = [] }: FileListProps) {
+  const click = (event: MouseEvent, change: FileChange) => {
     const mode = selectionMode(event)
     if (mode && onSelectMore) onSelectMore(change, mode)
-    else if (selected) onClose()
+    else if (isOpen(change)) onClose()
     else onOpen(change)
   }
 
@@ -55,7 +57,7 @@ export function FileList({ changes, isSelected, onOpen, onClose, onSelectMore, a
             className={`file-item ${selected ? 'selected' : ''}`}
             title={change.path}
             onMouseDown={(event) => onSelectMore && selectionMode(event) && event.preventDefault()}
-            onClick={(event) => click(event, change, selected)}
+            onClick={(event) => click(event, change)}
           >
             <span className={`file-status ${change.status}`}>{statusLetters[change.status]}</span>
             <span className="file-path">
