@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { hasConflicts, type FileChange } from '../../../domain/entities'
 import { findIssueKeys } from '../../../domain/jira'
-import { extendFileSelection, selectFile, type FileSelection, type SelectionMode } from '../fileSelection'
+import { extendFileSelection, selectFile, selectionAfterDiffClosed, type FileSelection, type SelectionMode } from '../fileSelection'
 import { kraft } from '../kraftClient'
 import { usePanelSize } from '../usePanelSize'
 import type { RepositoryController } from '../useRepositoryController'
@@ -23,14 +23,21 @@ export function WorkingTreePanel({ controller }: { controller: RepositoryControl
   const branchIssueKey = controller.jira && view.currentBranch ? findIssueKeys(view.currentBranch, controller.jira.projectKeys)[0] : undefined
 
   const diff = controller.diff
+  const openFile =
+    diff?.kind === 'working' ? selectFile(diff.staged, diff.change.path) : diff?.kind === 'conflict' ? selectFile(false, diff.change.path) : null
   // A diff opened before this panel mounted still counts as the selected file.
-  const selection =
-    fileSelection ??
-    (diff?.kind === 'working' ? selectFile(diff.staged, diff.change.path) : diff?.kind === 'conflict' ? selectFile(false, diff.change.path) : null)
+  const selection = fileSelection ?? openFile
   const isSelected = (change: FileChange, isStaged: boolean) => selection?.staged === isStaged && selection.paths.includes(change.path)
+  const isOpen = (change: FileChange, isStaged: boolean) => openFile?.staged === isStaged && openFile.paths.includes(change.path)
   const selectedUnstaged = unstaged.filter((change) => isSelected(change, false))
   const selectedStaged = staged.filter((change) => isSelected(change, true))
   const paths = (changes: FileChange[]) => changes.map((change) => change.path)
+
+  // The diff also closes from outside this panel: its own close button, the merge tool, the graph.
+  const hasDiff = diff !== null
+  useEffect(() => {
+    if (!hasDiff) setFileSelection(selectionAfterDiffClosed)
+  }, [hasDiff])
 
   // A conflicted file opens in the merge tool, to pick what to keep, rather than in the diff view.
   const showFile = (change: FileChange, isStaged: boolean) =>
@@ -149,6 +156,7 @@ export function WorkingTreePanel({ controller }: { controller: RepositoryControl
         <FileList
           changes={unstaged}
           isSelected={(change) => isSelected(change, false)}
+          isOpen={(change) => isOpen(change, false)}
           onOpen={(change) => openDiff(change, false)}
           onClose={closeDiff}
           onSelectMore={(change, mode) => selectMore(change, false, unstaged, mode)}
@@ -173,6 +181,7 @@ export function WorkingTreePanel({ controller }: { controller: RepositoryControl
         <FileList
           changes={staged}
           isSelected={(change) => isSelected(change, true)}
+          isOpen={(change) => isOpen(change, true)}
           onOpen={(change) => openDiff(change, true)}
           onClose={closeDiff}
           onSelectMore={(change, mode) => selectMore(change, true, staged, mode)}
