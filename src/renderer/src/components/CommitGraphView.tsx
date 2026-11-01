@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type MouseEvent } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { rowKey, type GraphRow } from '../../../domain/commitGraph'
 import type { RefLabel } from '../../../domain/entities'
 import { checkoutLocal, checkoutRemote, showCommitMenu, showLocalBranchMenu, showRemoteBranchMenu, showStashMenu } from '../actions'
 import { extendSelection, isSelected, selectionFor } from '../commitSelection'
 import { formatFullDate, formatRelativeDate, laneColor, stashSummary } from '../format'
+import { scrollTopKeepingRows } from '../graphAnchor'
 import type { RepositoryController } from '../useRepositoryController'
 import { usePanelSize } from '../usePanelSize'
 import { ResizeHandle } from './ResizeHandle'
@@ -38,6 +39,19 @@ export function CommitGraphView({ controller }: { controller: RepositoryControll
     observer.observe(element)
     return () => observer.disconnect()
   }, [])
+
+  // A layout effect, so the rows never paint in their shifted place first.
+  const previousView = useRef(view)
+  useLayoutEffect(() => {
+    const before = previousView.current
+    previousView.current = view
+    const element = scrollRef.current
+    if (!element) return
+    const next = scrollTopKeepingRows(before, view, element.scrollTop, rowHeight)
+    if (next === element.scrollTop) return
+    element.scrollTop = next
+    setScrollTop(element.scrollTop)
+  }, [view])
 
   const width = graphWidth(Math.min(laneCount, maxGraphLanes))
   const first = Math.max(0, Math.floor(scrollTop / rowHeight) - overscanRows)

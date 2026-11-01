@@ -4,7 +4,7 @@ import { isAbsolute, join, relative, resolve } from 'node:path'
 import type { DiffOptions } from '../domain/diff'
 import type { Branch, Commit, FileChange, Stash, WorkingTreeStatus } from '../domain/entities'
 import type { CommitAuthor, ConflictVersions, GitRepository, GitRepositoryFactory, MergeOptions } from '../application/ports'
-import { runGit, type GitCommandOptions } from './gitCommand'
+import { GitCommandError, runGit, type GitCommandOptions } from './gitCommand'
 import {
   branchFormat,
   lines,
@@ -36,6 +36,33 @@ const endOfOptions = '--end-of-options'
  * Kraft parses git's own unified diff, so neither is wanted when producing a patch.
  */
 const noDiffCommands = ['--no-ext-diff', '--no-textconv']
+
+/** How long a fetch nobody asked for may take; a hung connection must not keep it going. */
+const backgroundFetchTimeoutMs = 2 * 60 * 1000
+
+/**
+ * Makes a fetch fail rather than ask for anything. GIT_TERMINAL_PROMPT=0 is already set for every command,
+ * but Git Credential Manager has its own windows, and askpass programs and SSH have their own prompts.
+ * Empty askpass variables stop git falling back on a configured askpass program.
+ */
+function backgroundFetchEnvironment(hasOwnSshCommand: boolean): Record<string, string> {
+  return {
+    GCM_INTERACTIVE: 'never',
+    GIT_ASKPASS: '',
+    SSH_ASKPASS: '',
+    // Someone's own SSH command is left as it is, as it may not be OpenSSH; the timeout covers it.
+    ...(hasOwnSshCommand ? {} : { GIT_SSH_COMMAND: 'ssh -o BatchMode=yes' })
+  }
+}
+
+/** Exit code git uses when it does not understand its arguments, whatever the language of its message. */
+const usageErrorExitCode = 129
+
+/** Git's own message for an option it doesn't know is a usage listing, which says nothing about upgrading. */
+export function explainBackgroundFetchFailure(error: unknown): unknown {
+  const tooOldForItsOptions = error instanceof GitCommandError && error.exitCode === usageErrorExitCode
+  return tooOldForItsOptions ? new Error('Automatic fetch needs git 2.29 or newer. Fetching by hand still works.') : error
+}
 
 function assertSha(sha: string): string {
   if (!/^[0-9a-f]{4,64}$/i.test(sha)) throw new Error(`"${sha}" is not a valid commit id`)
@@ -332,6 +359,17 @@ export class GitCliRepository implements GitRepository {
 
   async fetch(): Promise<void> {
     await this.git(['fetch', '--all', '--prune'])
+  }
+
+  async fetchInBackground(): Promise<void> {
+    const hasOwnSshCommand = Boolean(process.env.GIT_SSH_COMMAND || process.env.GIT_SSH || (await this.getConfig('core.sshCommand')))
+    // FETCH_HEAD is what a git pull in a terminal is about to read, and maintenance would compete with the user's commands.
+    await this.run(['fetch', '--all', '--prune', '--no-write-fetch-head', '--no-recurse-submodules', '--no-auto-maintenance'], {
+      env: backgroundFetchEnvironment(hasOwnSshCommand),
+      timeoutMs: backgroundFetchTimeoutMs
+    }).catch((error: unknown) => {
+      throw explainBackgroundFetchFailure(error)
+    })
   }
 
   async fetchBranch(remote: string, branch: string): Promise<void> {

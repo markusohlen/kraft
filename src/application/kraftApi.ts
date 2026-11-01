@@ -72,6 +72,8 @@ export interface KraftApi {
   stashDrop(index: number): Promise<void>
 
   fetch(): Promise<void>
+  /** Fetches without the user having asked: never prompts for credentials. Only one runs at a time. */
+  fetchInBackground(): Promise<void>
   pull(): Promise<AutoStashResult>
   push(): Promise<void>
   /** Replaces a local branch's upstream with it, refusing when that would drop commits not seen locally. */
@@ -117,6 +119,7 @@ export const kraftMethods: readonly KraftMethod[] = [
   'stashApply',
   'stashDrop',
   'fetch',
+  'fetchInBackground',
   'pull',
   'push',
   'forcePush',
