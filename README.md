@@ -46,7 +46,7 @@ Kraft **updates itself** on Windows and as an AppImage on Linux: it checks for a
 
 ### Merge conflicts
 
-Click a conflicted file to open the **merge tool**. A (your branch) and B (the incoming changes) are shown side by side. Tick a conflict, or click single lines, to keep them. The Output pane shows the result, which you can also edit by hand. **Save** writes the file and stages it, ready to commit the merge.
+Click a conflicted file to open the **merge tool**. A (your branch) and B (the incoming changes) are shown side by side. Tick a conflict, or click single lines, to keep them. A side with no lines in a conflict, because it removed them, can be ticked too, which keeps that removal. The Output pane shows the result, which you can also edit by hand. **Save** writes the file and stages it, ready to commit the merge.
 
 ### Jira
 
@@ -82,4 +82,4 @@ Other scripts:
 
 Branches follow git-flow: `dev` is where development happens and is the default branch, and `main` holds the released versions. Features branch off `dev` as `feature/…`; a release is a `release/vX.Y.Z` branch off `dev` that bumps the version and is merged into `main` (and back into `dev`).
 
-Pushing a tag such as `v0.1.1` builds the installers for Windows, macOS and Linux and attaches them to a GitHub release, together with the `latest*.yml` files installed copies read to update themselves. Bump `version` in `package.json` to match the tag, or installed copies won't see the release as newer.
+Pushing a tag such as `v0.1.1` builds the installers for Windows, macOS and Linux and attaches them to a GitHub release, together with the `latest*.yml` files installed copies read to update themselves. Bump `version` in `package.json` to match the tag, or installed copies won't see the release as newer. You can also run the **Release** workflow by hand on `main` (Actions → Release → Run workflow): it tags the branch with `package.json`'s version and builds the same release.

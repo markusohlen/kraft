@@ -1,16 +1,34 @@
 # Pushing a tag like v0.2.0 builds the installers on each OS and attaches them to a GitHub Release,
 # where installed copies of Kraft find them and update themselves. The tag must match package.json's version.
+# Running the workflow by hand on a branch instead tags its head with package.json's version first.
 name: Release
 
 on:
   push:
     tags: ['v*']
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
+  tag:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: tag
+        run: |
+          tag="v$(node -p "require('./package.json').version")"
+          if [ "$GITHUB_REF_TYPE" != tag ]; then
+            git tag "$tag"
+            git push origin "$tag"
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
   build:
+    needs: tag
     strategy:
       matrix:
         os: [windows-latest, macos-latest, ubuntu-latest]
@@ -27,6 +45,7 @@ jobs:
       # latest*.yml and the block maps are what installed copies of Kraft read to update themselves.
       - uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ needs.tag.outputs.tag }}
           files: |
             release/*.exe
             release/*.dmg
