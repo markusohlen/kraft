@@ -45,7 +45,7 @@ Kraft **updates itself** on Windows and as an AppImage on Linux: it checks for a
 
 ### Merge conflicts
 
-Click a conflicted file to open the **merge tool**. A (your branch) and B (the incoming changes) are shown side by side. Tick a conflict, or click single lines, to keep them. The Output pane shows the result, which you can also edit by hand. **Save** writes the file and stages it, ready to commit the merge.
+Click a conflicted file to open the **merge tool**. A (your branch) and B (the incoming changes) are shown side by side. Tick a conflict, or click single lines, to keep them. A side with no lines in a conflict, because it removed them, can be ticked too, which keeps that removal. The Output pane shows the result, which you can also edit by hand. **Save** writes the file and stages it, ready to commit the merge.
 
 ### Jira
 

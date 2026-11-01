@@ -12,6 +12,8 @@ export type MergeSegment =
   /** `base` holds the lines as they were before either side changed them. */
   | { kind: 'conflict'; ours: string[]; base: string[]; theirs: string[] }
 
+export type ConflictSegment = Extract<MergeSegment, { kind: 'conflict' }>
+
 /** A file merged as far as git could, split into the lines both sides agree on and the conflicts between them. */
 export interface MergedText {
   segments: MergeSegment[]
@@ -25,9 +27,17 @@ export interface ConflictChoice {
   theirs: number[]
   /** The side picked first; its lines come first in the result. */
   first: MergeSide
+  /** Whether a side with no lines here is picked, which resolves the conflict to that side's nothing instead of leaving it unresolved. */
+  emptySidePicked: boolean
 }
 
-export const emptyChoice: ConflictChoice = { ours: [], theirs: [], first: 'ours' }
+export const emptyChoice: ConflictChoice = { ours: [], theirs: [], first: 'ours', emptySidePicked: false }
+
+/** What a side's checkbox shows for the conflicts it covers. */
+export interface SidePickState {
+  checked: boolean
+  indeterminate: boolean
+}
 
 /** Where a line of the result comes from: both sides, one side, or a conflict nothing was picked from yet. */
 export type ResolvedLineOrigin = 'common' | MergeSide | 'unresolved'
@@ -50,7 +60,7 @@ export function parseConflictMarkers(text: string, markerSize = conflictMarkerSi
 
   const segments: MergeSegment[] = []
   let section: 'common' | MergeSide | 'base' = 'common'
-  let conflict: Extract<MergeSegment, { kind: 'conflict' }> | null = null
+  let conflict: ConflictSegment | null = null
   const addCommon = (line: string) => {
     const last = segments[segments.length - 1]
     if (last?.kind === 'common') last.lines.push(line)
@@ -108,13 +118,27 @@ export function setPicked(choice: ConflictChoice, side: MergeSide, indexes: read
   }
 }
 
-/** Picks or unpicks every line of one side of a conflict, leaving the other side's picks alone. */
-export function setSidePicked(choice: ConflictChoice, segment: Extract<MergeSegment, { kind: 'conflict' }>, side: MergeSide, picked: boolean): ConflictChoice {
+/** Picks or unpicks every line of one side of a conflict, or the side itself if it has no lines, leaving the other side's picks alone. */
+export function setSidePicked(choice: ConflictChoice, segment: ConflictSegment, side: MergeSide, picked: boolean): ConflictChoice {
+  if (segment[side].length === 0) return { ...choice, emptySidePicked: picked }
   return setPicked(choice, side, segment[side].map((_, index) => index), picked)
 }
 
 export function isChoiceEmpty(choice: ConflictChoice): boolean {
-  return choice.ours.length === 0 && choice.theirs.length === 0
+  return choice.ours.length === 0 && choice.theirs.length === 0 && !choice.emptySidePicked
+}
+
+/** How much of one side is picked across conflicts, where a side with no lines in a conflict counts as a single thing to pick. */
+export function sidePickState(segments: readonly ConflictSegment[], choices: readonly ConflictChoice[], side: MergeSide): SidePickState {
+  let total = 0
+  let picked = 0
+  segments.forEach((segment, index) => {
+    const hasLines = segment[side].length > 0
+    total += hasLines ? segment[side].length : 1
+    if (hasLines) picked += choices[index][side].length
+    else if (choices[index].emptySidePicked) picked += 1
+  })
+  return { checked: total > 0 && picked === total, indeterminate: picked > 0 && picked < total }
 }
 
 /**

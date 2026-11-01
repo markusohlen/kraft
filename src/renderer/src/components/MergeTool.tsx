@@ -9,9 +9,10 @@ import {
   setPicked,
   setSidePicked,
   sideLines,
+  sidePickState,
   withLineEndings,
   type ConflictChoice,
-  type MergeSegment,
+  type ConflictSegment,
   type MergeSide,
   type ResolvedLine
 } from '../../../domain/mergeConflict'
@@ -25,8 +26,6 @@ import { HighlightedCode } from './HighlightedCode'
 import { ResizeHandle } from './ResizeHandle'
 
 type SharedScroll = ReturnType<typeof useSharedScrollLeft>
-
-type ConflictSegment = Extract<MergeSegment, { kind: 'conflict' }>
 
 const sideLetters: Record<MergeSide, string> = { ours: 'A', theirs: 'B' }
 const sides: readonly MergeSide[] = ['ours', 'theirs']
@@ -128,7 +127,7 @@ function TextConflict({ controller, conflict }: { controller: RepositoryControll
   }
   const pickLines = (conflictIndex: number, side: MergeSide, indexes: number[], picked: boolean) =>
     pick((choice) => setPicked(choice, side, indexes, picked), conflictIndex)
-  const pickWholeSide = (side: MergeSide, picked: boolean) => pick((choice, segment) => setSidePicked(choice, segment, side, picked))
+  const pickSide = (side: MergeSide, picked: boolean, only?: number) => pick((choice, segment) => setSidePicked(choice, segment, side, picked), only)
 
   const goToConflict = (index: number) => {
     setCurrentConflict(index)
@@ -169,22 +168,17 @@ function TextConflict({ controller, conflict }: { controller: RepositoryControll
 
       <div className="merge-sides">
         <div className="merge-pane-headers">
-          {sides.map((side) => {
-            const total = conflicts.reduce((sum, segment) => sum + segment[side].length, 0)
-            const picked = choices.reduce((sum, choice) => sum + choice[side].length, 0)
-            return (
-              <div key={side} className={`merge-pane-header ${side}`}>
-                <PickBox
-                  label={`Keep all of ${sideLetters[side]}`}
-                  checked={total > 0 && picked === total}
-                  indeterminate={picked > 0 && picked < total}
-                  disabled={total === 0}
-                  onChange={(checked) => pickWholeSide(side, checked)}
-                />
-                <SideName side={side} info={conflict.sides[side]} />
-              </div>
-            )
-          })}
+          {sides.map((side) => (
+            <div key={side} className={`merge-pane-header ${side}`}>
+              <PickBox
+                label={`Keep all of ${sideLetters[side]}`}
+                {...sidePickState(conflicts, choices, side)}
+                disabled={conflicts.length === 0}
+                onChange={(checked) => pickSide(side, checked)}
+              />
+              <SideName side={side} info={conflict.sides[side]} />
+            </div>
+          ))}
         </div>
         <div className="diff-body" ref={bodyRef}>
           <div className="split-panes">
@@ -198,7 +192,8 @@ function TextConflict({ controller, conflict }: { controller: RepositoryControll
                 choices={choices}
                 currentConflict={currentConflict}
                 scroll={sharedScroll}
-                onPick={pickLines}
+                onPickLines={pickLines}
+                onPickSide={(conflictIndex, pickedSide, picked) => pickSide(pickedSide, picked, conflictIndex)}
               />
             ))}
           </div>
@@ -251,10 +246,11 @@ interface MergePaneProps {
   choices: ConflictChoice[]
   currentConflict: number
   scroll: SharedScroll
-  onPick: (conflict: number, side: MergeSide, indexes: number[], picked: boolean) => void
+  onPickLines: (conflict: number, side: MergeSide, indexes: number[], picked: boolean) => void
+  onPickSide: (conflict: number, side: MergeSide, picked: boolean) => void
 }
 
-function MergePane({ side, rows, highlighted, conflicts, choices, currentConflict, scroll, onPick }: MergePaneProps) {
+function MergePane({ side, rows, highlighted, conflicts, choices, currentConflict, scroll, onPickLines, onPickSide }: MergePaneProps) {
   return (
     <div className={`split-pane merge-pane ${side}`} ref={scroll.register} onScroll={(event) => scroll.follow(event.currentTarget)}>
       <table className="diff-table">
@@ -274,6 +270,30 @@ function MergePane({ side, rows, highlighted, conflicts, choices, currentConflic
             const line = row[side]
             const current = row.conflict === currentConflict ? 'current-change' : ''
             const scrollTarget = row.startsConflict && side === 'ours' ? { 'data-conflict': row.conflict } : {}
+            const segment = conflicts[row.conflict]
+            const choice = choices[row.conflict]
+            const sideBox = (
+              <PickBox
+                label={`Keep ${sideLetters[side]}'s side of conflict ${row.conflict + 1}`}
+                {...sidePickState([segment], [choice], side)}
+                onChange={(checked) => onPickSide(row.conflict, side, checked)}
+              />
+            )
+            if (!line && row.startsConflict && segment[side].length === 0) {
+              return (
+                <tr
+                  key={index}
+                  className={`split-row merge-line ${side} ${choice.emptySidePicked ? 'picked' : ''} ${current}`}
+                  title={choice.emptySidePicked ? 'Click to stop keeping this side' : 'Click to keep this side, which has no lines here'}
+                  onClick={() => onPickSide(row.conflict, side, !choice.emptySidePicked)}
+                  {...scrollTarget}
+                >
+                  <td className="pick-cell">{sideBox}</td>
+                  <td className="line-number" />
+                  <td className="line-text muted">No lines</td>
+                </tr>
+              )
+            }
             if (!line) {
               return (
                 <tr key={index} className={`split-row empty ${current}`} {...scrollTarget}>
@@ -283,34 +303,16 @@ function MergePane({ side, rows, highlighted, conflicts, choices, currentConflic
                 </tr>
               )
             }
-            const segment = conflicts[row.conflict]
-            const choice = choices[row.conflict]
             const picked = choice[side].includes(line.index)
             return (
               <tr
                 key={index}
                 className={`split-row merge-line ${side} ${picked ? 'picked' : ''} ${current}`}
                 title={picked ? 'Click to leave this line out' : 'Click to keep this line'}
-                onClick={() => onPick(row.conflict, side, [line.index], !picked)}
+                onClick={() => onPickLines(row.conflict, side, [line.index], !picked)}
                 {...scrollTarget}
               >
-                <td className="pick-cell">
-                  {line.index === 0 && (
-                    <PickBox
-                      label={`Keep ${sideLetters[side]}'s side of conflict ${row.conflict + 1}`}
-                      checked={choice[side].length === segment[side].length}
-                      indeterminate={choice[side].length > 0 && choice[side].length < segment[side].length}
-                      onChange={(checked) =>
-                        onPick(
-                          row.conflict,
-                          side,
-                          segment[side].map((_, lineIndex) => lineIndex),
-                          checked
-                        )
-                      }
-                    />
-                  )}
-                </td>
+                <td className="pick-cell">{line.index === 0 && sideBox}</td>
                 <td className="line-number">{line.number}</td>
                 <td className="line-text">
                   <HighlightedCode line={highlighted[line.number - 1]} />
