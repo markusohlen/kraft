@@ -84,6 +84,8 @@ export interface GitRepository {
   fastForward(target: string): Promise<void>
   createBranch(name: string, startPoint: string): Promise<void>
   deleteBranch(name: string, force: boolean): Promise<void>
+  /** Deletes `branch` on `remote`, along with its remote-tracking branch. */
+  deleteRemoteBranch(remote: string, branch: string): Promise<void>
   merge(branch: string, options: MergeOptions): Promise<void>
   rebase(onto: string): Promise<void>
   /** Replays the checked-out branch's commits after `upstream` onto `newBase`. */

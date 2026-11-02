@@ -8,6 +8,7 @@ import {
   cherryPick,
   createAndCheckoutBranch,
   deleteBranch,
+  deleteRemoteBranch,
   forcePushBranch,
   mergeIntoCurrent,
   pullCurrent,
@@ -184,6 +185,10 @@ export class KraftService implements KraftApi {
 
   deleteBranch(branch: string, force: boolean) {
     return deleteBranch(this.requireRepository(), branch, force)
+  }
+
+  deleteRemoteBranch(remoteBranch: string): Promise<void> {
+    return this.afterBackgroundFetch(() => deleteRemoteBranch(this.requireRepository(), remoteBranch))
   }
 
   mergeIntoCurrent(branch: string) {

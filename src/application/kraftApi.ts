@@ -62,6 +62,8 @@ export interface KraftApi {
   checkoutRemoteBranch(remoteBranch: string): Promise<RemoteCheckoutResult>
   createBranch(name: string, startPoint: string): Promise<AutoStashResult>
   deleteBranch(branch: string, force: boolean): Promise<void>
+  /** Deletes a branch such as `origin/feature/x` from its remote, for everyone. */
+  deleteRemoteBranch(remoteBranch: string): Promise<void>
   mergeIntoCurrent(branch: string): Promise<AutoStashResult>
   rebaseCurrentOnto(onto: string): Promise<AutoStashResult>
   cherryPick(sha: string): Promise<AutoStashResult>
@@ -113,6 +115,7 @@ export const kraftMethods: readonly KraftMethod[] = [
   'checkoutRemoteBranch',
   'createBranch',
   'deleteBranch',
+  'deleteRemoteBranch',
   'mergeIntoCurrent',
   'rebaseCurrentOnto',
   'cherryPick',

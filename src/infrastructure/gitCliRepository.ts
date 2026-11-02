@@ -309,6 +309,10 @@ export class GitCliRepository implements GitRepository {
     await this.git(['branch', force ? '-D' : '-d', endOfOptions, name])
   }
 
+  async deleteRemoteBranch(remote: string, branch: string): Promise<void> {
+    await this.git(['push', '--delete', endOfOptions, remote, `refs/heads/${branch}`])
+  }
+
   async merge(branch: string, options: MergeOptions): Promise<void> {
     const message = options.message ? ['-m', options.message] : []
     await this.git(['merge', options.noFastForward ? '--no-ff' : '--ff', '--no-edit', ...message, endOfOptions, branch])

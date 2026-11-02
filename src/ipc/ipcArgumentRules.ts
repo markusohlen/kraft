@@ -83,6 +83,7 @@ const argumentRules: Record<IpcMethod, readonly Rule[]> = {
   checkoutRemoteBranch: [isString],
   createBranch: [isString, isString],
   deleteBranch: [isString, isBoolean],
+  deleteRemoteBranch: [isString],
   mergeIntoCurrent: [isString],
   rebaseCurrentOnto: [isString],
   cherryPick: [isString],

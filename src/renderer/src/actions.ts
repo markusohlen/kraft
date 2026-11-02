@@ -74,7 +74,8 @@ export function showRemoteBranchMenu(controller: RepositoryController, event: Mo
     {
       label: `Merge ${remoteBranch} into ${current}`,
       onSelect: () => void controller.run('Merging', () => kraft.mergeIntoCurrent(remoteBranch), `Merged ${remoteBranch}`)
-    }
+    },
+    { label: `Delete ${remoteBranch}…`, danger: true, onSelect: () => askDeleteRemoteBranch(controller, remoteBranch) }
   ])
 }
 
@@ -296,6 +297,18 @@ function askDeleteBranch(controller: RepositoryController, branch: string): void
     danger: true,
     onSubmit: ({ force }) =>
       void controller.run('Deleting branch', () => kraft.deleteBranch(branch, force === true), `Deleted ${branch}`)
+  })
+}
+
+function askDeleteRemoteBranch(controller: RepositoryController, remoteBranch: string): void {
+  controller.ask({
+    title: `Delete ${remoteBranch}?`,
+    description: 'The branch is deleted from the remote for everyone. Commits that are on no other branch can be lost. Local branches are not changed.',
+    fields: [],
+    confirmLabel: 'Delete from remote',
+    danger: true,
+    onSubmit: () =>
+      void controller.run('Deleting remote branch', () => kraft.deleteRemoteBranch(remoteBranch), `Deleted ${remoteBranch}`)
   })
 }
 

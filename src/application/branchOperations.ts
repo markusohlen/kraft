@@ -78,6 +78,13 @@ export async function deleteBranch(repository: GitRepository, branch: string, fo
   await repository.deleteBranch(branch, force)
 }
 
+/** Deletes a branch such as `origin/feature/x` from its remote; local branches are left as they are. */
+export async function deleteRemoteBranch(repository: GitRepository, remoteBranch: string): Promise<void> {
+  const name = splitRemoteBranch(remoteBranch, await repository.remotes())
+  if (!name) throw new Error(`"${remoteBranch}" is not a remote branch`)
+  await repository.deleteRemoteBranch(name.remote, name.branch)
+}
+
 export async function mergeIntoCurrent(repository: GitRepository, branch: string): Promise<AutoStashResult> {
   return withAutoStash(repository, autoStashMessages.merge(branch), 'pop', () =>
     repository.merge(branch, { noFastForward: false })

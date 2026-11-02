@@ -39,7 +39,7 @@ Kraft **updates itself** on Windows and as an AppImage on Linux: it checks for a
 - **Filter files**: start typing in the working tree, commit or stash panel to show only the files whose names start with what you type, such as `s` for every file starting with s. Escape clears it.
 - **Single lines**: in a modified file's diff, right-click a changed line, or mark several with the mouse and right-click them, to stage, unstage or discard just those lines.
 - **Diffs** in split or unified layout, with syntax highlighting, the changed characters marked, and an optional whole-file view. Marks along the scrollbar show where the changes are in the file.
-- **Branches**: checkout (remote branches are fetched and fast-forwarded first), create, delete, merge, rebase and cherry-pick from the right-click menus.
+- **Branches**: checkout (remote branches are fetched and fast-forwarded first), create, delete (remote branches too), merge, rebase and cherry-pick from the right-click menus.
 - **Amend**: tick *Amend previous commit* in the commit box to add the staged changes to the last commit or reword its message.
 - **Force push**: after amending, rebasing or squashing pushed commits, **Push** offers to force push, as does the branch's right-click menu. Kraft refuses when that would remove commits you have never had locally.
 - **Auto-stash**: when a checkout, merge, pull or cherry-pick needs a clean working tree, Kraft stashes your changes and pops them back afterwards. A stash that would restore no files is not kept.
