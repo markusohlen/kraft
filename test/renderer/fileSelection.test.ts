@@ -1,7 +1,39 @@
 import { describe, expect, it } from 'vitest'
-import { extendFileSelection, selectFile, selectedPaths, selectionAfterDiffClosed } from '../../src/renderer/src/fileSelection'
+import {
+  extendFileSelection,
+  movesOnWhenStaged,
+  pathAfterLeavingList,
+  selectFile,
+  selectedPaths,
+  selectionAfterDiffClosed
+} from '../../src/renderer/src/fileSelection'
 
 const unstaged = ['a.ts', 'b.ts', 'c.ts', 'd.ts']
+
+describe('movesOnWhenStaged', () => {
+  it('moves on from the shown file, or when no file is shown', () => {
+    expect(movesOnWhenStaged(selectFile(false, 'b.ts'), 'b.ts')).toBe(true)
+    expect(movesOnWhenStaged(null, 'b.ts')).toBe(true)
+  })
+
+  it('stays when the user is on another file or a selection of several', () => {
+    expect(movesOnWhenStaged(selectFile(false, 'a.ts'), 'b.ts')).toBe(false)
+    expect(movesOnWhenStaged(selectFile(true, 'b.ts'), 'b.ts')).toBe(false)
+    expect(movesOnWhenStaged({ staged: false, paths: ['a.ts', 'b.ts'], anchor: 'a.ts' }, 'b.ts')).toBe(false)
+  })
+})
+
+describe('pathAfterLeavingList', () => {
+  it('is the next file, or the one before for the last file', () => {
+    expect(pathAfterLeavingList(unstaged, 'b.ts')).toBe('c.ts')
+    expect(pathAfterLeavingList(unstaged, 'd.ts')).toBe('c.ts')
+  })
+
+  it('is null when no other file remains', () => {
+    expect(pathAfterLeavingList(['a.ts'], 'a.ts')).toBeNull()
+    expect(pathAfterLeavingList(unstaged, 'missing.ts')).toBeNull()
+  })
+})
 
 describe('extendFileSelection', () => {
   it('toggle adds a file to the selection and makes it the anchor', () => {

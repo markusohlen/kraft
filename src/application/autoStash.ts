@@ -20,10 +20,23 @@ export async function withAutoStash(
   restore: AutoStashRestore,
   operation: () => Promise<void>
 ): Promise<AutoStashResult> {
-  const stashed = hasUncommittedChanges(await repository.status()) && (await repository.stashPush(message))
+  const stashed = await stashChanges(repository, message)
   await operation()
   if (stashed && restore === 'pop') await repository.stashPop(0)
   return { stashMessage: stashed ? message : null }
+}
+
+/**
+ * A staged edit that was undone in the working tree counts as uncommitted, but popping its stash would
+ * restore no file, so such a stash is not kept. Returns whether a stash was kept.
+ */
+async function stashChanges(repository: GitRepository, message: string): Promise<boolean> {
+  if (!hasUncommittedChanges(await repository.status()) || !(await repository.stashPush(message))) return false
+  const [newest] = await repository.stashes()
+  const [files, untracked] = await Promise.all([repository.commitFiles(newest.sha), repository.stashUntrackedFiles(newest.sha)])
+  if (files.length > 0 || untracked.length > 0) return true
+  await repository.stashDrop(newest.index)
+  return false
 }
 
 export const autoStashMessages = {

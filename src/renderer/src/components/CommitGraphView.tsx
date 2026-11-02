@@ -1,14 +1,15 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { rowKey, type GraphRow } from '../../../domain/commitGraph'
 import type { RefLabel } from '../../../domain/entities'
 import { checkoutLocal, checkoutRemote, showCommitMenu, showLocalBranchMenu, showRemoteBranchMenu, showStashMenu } from '../actions'
 import { extendSelection, isSelected, selectionFor } from '../commitSelection'
 import { formatFullDate, formatRelativeDate, laneColor, stashSummary } from '../format'
-import { checkedOutName, nextGraphPlace } from '../graphScroll'
+import { checkedOutName, nextGraphPlace, scrollTopRevealing } from '../graphScroll'
 import { scrollTopKeepingRows } from '../graphAnchor'
 import type { RepositoryController } from '../useRepositoryController'
 import { usePanelSize } from '../usePanelSize'
+import { HistorySearchBar } from './HistorySearchBar'
 import { ResizeHandle } from './ResizeHandle'
 import { IssueKeyText } from './JiraIssues'
 import { GraphCell, graphWidth, rowHeight } from './GraphCell'
@@ -71,6 +72,24 @@ export function CommitGraphView({ controller }: { controller: RepositoryControll
     setScrollTop(element.scrollTop)
   }, [view])
 
+  const search = controller.historySearch
+  const matchedShas = useMemo(() => new Set(search.matches.map((match) => match.sha)), [search.matches])
+  const handledReveal = useRef(search.revealRequest)
+  useLayoutEffect(() => {
+    if (search.revealRequest === handledReveal.current) return
+    handledReveal.current = search.revealRequest
+    const element = scrollRef.current
+    const sha = search.matches[search.current]?.sha
+    const rowIndex = rows.findIndex((row) => row.kind === 'commit' && row.commit.sha === sha)
+    if (!element || rowIndex === -1) return
+    element.scrollTop = scrollTopRevealing(rowIndex, element.scrollTop, { height: element.clientHeight, rowHeight })
+    followScroll(element)
+  }, [search.revealRequest])
+  const searchEmphasis = (row: GraphRow): string => {
+    if (matchedShas.size === 0) return ''
+    return row.kind === 'commit' && matchedShas.has(row.commit.sha) ? 'search-match' : 'search-dimmed'
+  }
+
   const width = graphWidth(Math.min(laneCount, maxGraphLanes))
   const first = Math.max(0, Math.floor(scrollTop / rowHeight) - overscanRows)
   const last = Math.min(rows.length, Math.ceil((scrollTop + viewportHeight) / rowHeight) + overscanRows)
@@ -78,6 +97,7 @@ export function CommitGraphView({ controller }: { controller: RepositoryControll
 
   return (
     <div className="graph" style={columnWidths}>
+      <HistorySearchBar controller={controller} />
       <div className="graph-header">
         <div className="col-refs">
           Branch / Tag
@@ -107,6 +127,7 @@ export function CommitGraphView({ controller }: { controller: RepositoryControll
               top={index * rowHeight}
               width={width}
               selected={isSelected(controller.selection, rows[index])}
+              emphasis={searchEmphasis(rows[index])}
             />
           ))}
         </div>
@@ -121,10 +142,12 @@ interface GraphRowViewProps {
   top: number
   width: number
   selected: boolean
+  /** How a history search marks this row, as a class name. */
+  emphasis: string
 }
 
 /** One row: the lane color tints the graph band, the bar beside the message and the branch pills. */
-function GraphRowView({ controller, row, top, width, selected }: GraphRowViewProps) {
+function GraphRowView({ controller, row, top, width, selected, emphasis }: GraphRowViewProps) {
   const color = laneColor(row.lane)
   const style = { top, '--lane-color': color } as CSSProperties
   const select = () => {
@@ -138,7 +161,7 @@ function GraphRowView({ controller, row, top, width, selected }: GraphRowViewPro
   }
   // Without this, shift-click also selects the text of every row in between.
   const keepTextUnselected = (event: MouseEvent) => event.shiftKey && event.preventDefault()
-  const className = `graph-row ${row.kind}-row ${selected ? 'selected' : ''}`
+  const className = `graph-row ${row.kind}-row ${selected ? 'selected' : ''} ${emphasis}`
 
   if (row.kind === 'work-in-progress') {
     return (

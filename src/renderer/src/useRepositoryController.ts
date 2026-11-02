@@ -11,6 +11,7 @@ import { kraft } from './kraftClient'
 import { LatestRequest } from './latestRequest'
 import { BackgroundFetchPresenter } from './presenters/backgroundFetchPresenter'
 import { CherryPickPresenter } from './presenters/cherryPickPresenter'
+import { HistorySearchPresenter, noHistorySearch } from './presenters/historySearchPresenter'
 import { LineActionPresenter } from './presenters/lineActionPresenter'
 import { PullRequestPresenter } from './presenters/pullRequestPresenter'
 import { RemoteBranchPresenter } from './presenters/remoteBranchPresenter'
@@ -98,6 +99,8 @@ export function useRepositoryController() {
   const [autoFetch, setAutoFetch] = usePreference<boolean>('kraft.autoFetch', true, [true, false])
   /** Why the last automatic fetch failed, by repository. */
   const [fetchFailures, setFetchFailures] = useState<Record<string, string>>({})
+  /** Kept here because the graph, which shows it, is unmounted while a diff is open. */
+  const [historySearch, setHistorySearch] = useState(noHistorySearch)
   const nextToastId = useRef(1)
   const graphPlace = useRef<GraphPlace | null>(null)
   const viewRequests = useRef(new LatestRequest())
@@ -195,6 +198,14 @@ export function useRepositoryController() {
         showFetchFailure: (path, message) => setFetchFailures((current) => withFetchFailure(current, path, message))
       }),
       cherryPick: new CherryPickPresenter(kraft, { run, notify }),
+      historySearch: new HistorySearchPresenter(kraft, {
+        showSearch: setHistorySearch,
+        graphRows: () => latest.current.view?.graph.rows ?? [],
+        selectCommit: (sha) => {
+          setDiff(null)
+          setSelection({ kind: 'commit', sha })
+        }
+      }),
       lineAction: new LineActionPresenter(kraft, {
         run,
         confirmDiscard: (title, onConfirm) =>
@@ -239,6 +250,7 @@ export function useRepositoryController() {
         const opened = await kraft.openRepository(path)
         // A refresh still running may be of the repository this replaces.
         viewRequests.current.invalidate()
+        presenters.historySearch.clear()
         setView(opened)
         writeStored(lastRepositoryKey, opened.path)
         // Opening saves the repository, which may have added a tab.
@@ -251,8 +263,10 @@ export function useRepositoryController() {
         setBusyLabel(null)
       }
     },
-    [notify, loadLibrary]
+    [notify, loadLibrary, presenters]
   )
+
+  useEffect(() => presenters.historySearch.repeat(), [view, presenters])
 
   const startedUp = useRef(false)
   useEffect(() => {
@@ -299,6 +313,7 @@ export function useRepositoryController() {
     diff,
     setDiff,
     graphPlace,
+    historySearch,
     toasts,
     dismissToast,
     notify,

@@ -13,6 +13,8 @@ export interface ConflictVersions {
   theirs: string | null
 }
 
+export type CommitSearchField = 'message' | 'author'
+
 export interface CommitAuthor {
   name: string
   email: string
@@ -27,6 +29,10 @@ export interface GitRepository {
   log(limit: number): Promise<Commit[]>
   /** HEAD's first-parent history, newest first; empty before the first commit. */
   firstParentLog(limit: number): Promise<Commit[]>
+  /** Commits on any branch, remote branch or tag whose `field` contains `text`, ignoring case; newest first. */
+  searchCommits(field: CommitSearchField, text: string, limit: number): Promise<Commit[]>
+  /** The commit a full or abbreviated sha names; null when `text` is not one, or names none or several. */
+  findCommit(text: string): Promise<Commit | null>
   commitMessage(sha: string): Promise<string>
   commitParents(sha: string): Promise<string[]>
   commitFiles(sha: string): Promise<FileChange[]>
@@ -84,6 +90,8 @@ export interface GitRepository {
   fastForward(target: string): Promise<void>
   createBranch(name: string, startPoint: string): Promise<void>
   deleteBranch(name: string, force: boolean): Promise<void>
+  /** Deletes `branch` on `remote`, along with its remote-tracking branch. */
+  deleteRemoteBranch(remote: string, branch: string): Promise<void>
   merge(branch: string, options: MergeOptions): Promise<void>
   rebase(onto: string): Promise<void>
   /** Replays the checked-out branch's commits after `upstream` onto `newBase`. */

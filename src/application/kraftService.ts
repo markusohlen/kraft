@@ -8,6 +8,7 @@ import {
   cherryPick,
   createAndCheckoutBranch,
   deleteBranch,
+  deleteRemoteBranch,
   forcePushBranch,
   mergeIntoCurrent,
   pullCurrent,
@@ -23,6 +24,7 @@ import {
   startGitFlowBranch,
   type FinishGitFlowOptions
 } from './gitFlowOperations'
+import { searchHistory } from './historySearch'
 import type { CommitDetails, KraftApi, RepositoryView } from './kraftApi'
 import { changeLines, type LineChangeRequest } from './lineOperations'
 import type { GitRepository, GitRepositoryFactory } from './ports'
@@ -95,6 +97,10 @@ export class KraftService implements KraftApi {
         ? { config: gitFlowConfig, branches: await listGitFlowBranches(repository, gitFlowConfig) }
         : null
     }
+  }
+
+  searchHistory(query: string) {
+    return searchHistory(this.requireRepository(), query)
   }
 
   async commitDetails(sha: string): Promise<CommitDetails> {
@@ -184,6 +190,10 @@ export class KraftService implements KraftApi {
 
   deleteBranch(branch: string, force: boolean) {
     return deleteBranch(this.requireRepository(), branch, force)
+  }
+
+  deleteRemoteBranch(remoteBranch: string): Promise<void> {
+    return this.afterBackgroundFetch(() => deleteRemoteBranch(this.requireRepository(), remoteBranch))
   }
 
   mergeIntoCurrent(branch: string) {

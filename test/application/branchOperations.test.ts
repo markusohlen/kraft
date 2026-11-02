@@ -37,6 +37,43 @@ describe('branch operations with auto-stash', () => {
     expect(await test.repository.stashes()).toHaveLength(0)
   })
 
+  it('does not keep a stash that would restore no files', async () => {
+    await test.write('readme.txt', 'staged, then undone\n')
+    await test.git('add', 'readme.txt')
+    await test.write('readme.txt', 'hello\n')
+
+    const result = await checkoutBranch(test.repository, 'other')
+
+    expect(result.stashMessage).toBeNull()
+    expect(await test.repository.stashes()).toHaveLength(0)
+    expect(await test.repository.currentBranch()).toBe('other')
+    expect(hasUncommittedChanges(await test.repository.status())).toBe(false)
+  })
+
+  it('keeps a stash holding only untracked files', async () => {
+    await test.write('new-file.txt', 'untracked\n')
+
+    const result = await checkoutBranch(test.repository, 'other')
+
+    expect(result.stashMessage).toBe('Auto stash before checking out "other"')
+    expect(await test.repository.stashes()).toHaveLength(1)
+  })
+
+  it('does not try to pop a stash it did not keep', async () => {
+    await test.write('readme.txt', 'staged, then undone\n')
+    await test.git('add', 'readme.txt')
+    await test.write('readme.txt', 'hello\n')
+    await test.git('stash', 'push', '-q', '--include-untracked', '--keep-index', '-m', 'an older stash of the user')
+    await test.write('readme.txt', 'staged, then undone too\n')
+    await test.git('add', 'readme.txt')
+    await test.write('readme.txt', 'hello\n')
+
+    const result = await mergeIntoCurrent(test.repository, 'other')
+
+    expect(result.stashMessage).toBeNull()
+    expect((await test.repository.stashes()).map((stash) => stash.message)).toEqual([expect.stringContaining('an older stash of the user')])
+  })
+
   it('does nothing when the branch is already checked out', async () => {
     await test.write('readme.txt', 'edited\n')
 
