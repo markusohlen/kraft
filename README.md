@@ -34,6 +34,7 @@ Kraft **updates itself** on Windows and as an AppImage on Linux: it checks for a
 ### Everyday Git
 
 - **Commit graph** of all branches, remotes, tags and stashes. Shift-click a range of commits to **squash** them. Checking out a branch scrolls to its commit, and closing a diff returns to where the graph was.
+- **Search history**: search every branch's commit messages, authors and shas from above the graph (Ctrl/Cmd+F). Matches stand out in the graph; Enter and Shift+Enter step through them, and Escape clears the search. Commits too old for the graph can still be opened.
 - **Automatic fetch**: branches and commits other people push show up by themselves, because Kraft quietly fetches every couple of minutes while it is visible and when you come back to it. It never asks for credentials; a failed fetch only marks the **Fetch** button. It needs git 2.29 or newer. Turn it off in **Settings → Fetching**.
 - **Working tree panel**: stage, unstage or discard single files, or Ctrl/Cmd-click and Shift-click several and act on all of them. Staging a file moves on to the next one. Drag the divider above *Staged files* to resize the lists.
 - **Filter files**: start typing in the working tree, commit or stash panel to show only the files whose names start with what you type, such as `s` for every file starting with s. Escape clears it.

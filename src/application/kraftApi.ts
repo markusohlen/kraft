@@ -5,6 +5,7 @@ import type { GitFlowBranch, GitFlowBranchType, GitFlowConfig } from '../domain/
 import type { AutoStashResult } from './autoStash'
 import type { RemoteCheckoutResult } from './branchOperations'
 import type { MergeConflict } from './conflictOperations'
+import type { HistorySearchResult } from './historySearch'
 import type { LineChangeRequest } from './lineOperations'
 import type { FinishGitFlowOptions, FinishGitFlowResult } from './gitFlowOperations'
 import type { PullRequestPage } from './pullRequestOperations'
@@ -37,6 +38,8 @@ export interface KraftApi {
   openRepository(path: string): Promise<RepositoryView>
   refresh(): Promise<RepositoryView>
 
+  /** Searches the messages, authors and shas of the whole history, including commits too old for the graph. */
+  searchHistory(query: string): Promise<HistorySearchResult>
   commitDetails(sha: string): Promise<CommitDetails>
   commitFileDiff(sha: string, path: string, options?: DiffOptions): Promise<string>
   stashDetails(sha: string): Promise<CommitDetails>
@@ -97,6 +100,7 @@ export const kraftMethods: readonly KraftMethod[] = [
   'chooseRepositoryFolder',
   'openRepository',
   'refresh',
+  'searchHistory',
   'commitDetails',
   'commitFileDiff',
   'stashDetails',

@@ -15,7 +15,10 @@ export function CommitPanel({ controller, sha }: { controller: RepositoryControl
   const [details, setDetails] = useState<CommitDetails | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [fileQuery, setFileQuery] = useState('')
-  const commit = controller.view!.graph.rows.find((row): row is CommitRow => row.kind === 'commit' && row.commit.sha === sha)?.commit
+  // A search can find commits too old for the graph to hold.
+  const commit =
+    controller.view!.graph.rows.find((row): row is CommitRow => row.kind === 'commit' && row.commit.sha === sha)?.commit ??
+    controller.historySearch.matches.find((match) => match.sha === sha)
 
   useEffect(() => {
     kraft.commitDetails(sha).then(setDetails, (failure: Error) => setError(failure.message))

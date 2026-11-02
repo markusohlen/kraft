@@ -65,6 +65,7 @@ const argumentRules: Record<IpcMethod, readonly Rule[]> = {
   chooseRepositoryFolder: [optional(isString)],
   openRepository: [isString],
   refresh: [],
+  searchHistory: [isString],
   commitDetails: [isString],
   commitFileDiff: [isString, isString, optional(diffOptions)],
   stashDetails: [isString],
