@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { isAbsolute, join, relative, resolve } from 'node:path'
 import type { DiffOptions } from '../domain/diff'
 import type { Branch, Commit, FileChange, Stash, WorkingTreeStatus } from '../domain/entities'
-import type { CommitAuthor, ConflictVersions, GitRepository, GitRepositoryFactory, MergeOptions } from '../application/ports'
+import type { CommitAuthor, CommitSearchField, ConflictVersions, GitRepository, GitRepositoryFactory, MergeOptions } from '../application/ports'
 import { GitCommandError, runGit, type GitCommandOptions } from './gitCommand'
 import {
   branchFormat,
@@ -58,6 +58,9 @@ function backgroundFetchEnvironment(hasOwnSshCommand: boolean): Record<string, s
 /** Exit code git uses when it does not understand its arguments, whatever the language of its message. */
 const usageErrorExitCode = 129
 
+/** Exit code git uses for a fatal error, which is what an ambiguous abbreviated sha is. */
+const fatalExitCode = 128
+
 /** Git's own message for an option it doesn't know is a usage listing, which says nothing about upgrading. */
 export function explainBackgroundFetchFailure(error: unknown): unknown {
   const tooOldForItsOptions = error instanceof GitCommandError && error.exitCode === usageErrorExitCode
@@ -99,11 +102,28 @@ export class GitCliRepository implements GitRepository {
   constructor(readonly path: string) {}
 
   async log(limit: number): Promise<Commit[]> {
-    const hasHead = await this.refExists('HEAD')
-    const refs = ['--branches', '--remotes', '--tags', ...(hasHead ? ['HEAD'] : [])]
-    if (!hasHead && !(await this.hasAnyRefs())) return []
+    const refs = await this.historyRefs()
+    if (!refs) return []
     const output = await this.git(['log', '--date-order', `-n${limit}`, '--decorate=full', `--format=${logFormat}`, ...refs])
     return parseLog(output)
+  }
+
+  async searchCommits(field: CommitSearchField, text: string, limit: number): Promise<Commit[]> {
+    const refs = await this.historyRefs()
+    if (!refs) return []
+    const pattern = field === 'message' ? `--grep=${text}` : `--author=${text}`
+    const output = await this.git(['log', '--date-order', `-n${limit}`, '--decorate=full', `--format=${logFormat}`, '-i', '-F', pattern, ...refs])
+    return parseLog(output)
+  }
+
+  async findCommit(text: string): Promise<Commit | null> {
+    if (!/^[0-9a-f]{4,64}$/i.test(text)) return null
+    const { exitCode } = await this.run(['rev-parse', '-q', '--verify', `${text}^{commit}`], {
+      acceptedExitCodes: [notFoundExitCode, fatalExitCode]
+    })
+    if (exitCode !== 0) return null
+    const [commit] = parseLog(await this.git(['log', '-n1', '--decorate=full', `--format=${logFormat}`, endOfOptions, text]))
+    return commit ?? null
   }
 
   async firstParentLog(limit: number): Promise<Commit[]> {
@@ -309,6 +329,10 @@ export class GitCliRepository implements GitRepository {
     await this.git(['branch', force ? '-D' : '-d', endOfOptions, name])
   }
 
+  async deleteRemoteBranch(remote: string, branch: string): Promise<void> {
+    await this.git(['push', '--delete', endOfOptions, remote, `refs/heads/${branch}`])
+  }
+
   async merge(branch: string, options: MergeOptions): Promise<void> {
     const message = options.message ? ['-m', options.message] : []
     await this.git(['merge', options.noFastForward ? '--no-ff' : '--ff', '--no-edit', ...message, endOfOptions, branch])
@@ -438,6 +462,13 @@ export class GitCliRepository implements GitRepository {
 
   async setConfig(key: string, value: string): Promise<void> {
     await this.git(['config', '--local', endOfOptions, key, value])
+  }
+
+  /** What the graph and history search start from; null when the repository has no commits. */
+  private async historyRefs(): Promise<string[] | null> {
+    const hasHead = await this.refExists('HEAD')
+    if (!hasHead && !(await this.hasAnyRefs())) return null
+    return ['--branches', '--remotes', '--tags', ...(hasHead ? ['HEAD'] : [])]
   }
 
   /** `stash push --include-untracked` keeps untracked files in a third parent, a root commit holding only them. */

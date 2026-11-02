@@ -1086,6 +1086,27 @@ body.resizing-rows * {
   min-height: 0;
 }
 
+.history-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-sidebar);
+  flex-shrink: 0;
+}
+
+.history-search-input {
+  flex: 0 1 340px;
+  min-width: 120px;
+  font-size: 12px;
+}
+
+.history-search-status {
+  font-size: 12px;
+  white-space: nowrap;
+}
+
 .graph-header {
   display: flex;
   height: 26px;
@@ -1121,6 +1142,14 @@ body.resizing-rows * {
 
 .graph-row.selected {
   background: var(--bg-selected);
+}
+
+.graph-row.search-match .col-message {
+  font-weight: 600;
+}
+
+.graph-row.search-dimmed {
+  opacity: 0.35;
 }
 
 .col-refs {

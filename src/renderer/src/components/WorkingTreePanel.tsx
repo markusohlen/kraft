@@ -2,7 +2,15 @@ import { useEffect, useState } from 'react'
 import { hasConflicts, type FileChange } from '../../../domain/entities'
 import { findIssueKeys } from '../../../domain/jira'
 import { filterFileChanges, shownCount } from '../fileFilter'
-import { extendFileSelection, selectFile, selectionAfterDiffClosed, type FileSelection, type SelectionMode } from '../fileSelection'
+import {
+  extendFileSelection,
+  movesOnWhenStaged,
+  pathAfterLeavingList,
+  selectFile,
+  selectionAfterDiffClosed,
+  type FileSelection,
+  type SelectionMode
+} from '../fileSelection'
 import { kraft } from '../kraftClient'
 import { usePanelSize } from '../usePanelSize'
 import type { RepositoryController } from '../useRepositoryController'
@@ -64,6 +72,17 @@ export function WorkingTreePanel({ controller }: { controller: RepositoryControl
   }
 
   const stage = (changes: FileChange[]) => void controller.run('Staging', () => kraft.stage(paths(changes)))
+  const stageAndMoveOn = (change: FileChange) => {
+    const movesOn = movesOnWhenStaged(selection, change.path)
+    const nextPath = pathAfterLeavingList(paths(shownUnstaged), change.path)
+    const next = shownUnstaged.find((candidate) => candidate.path === nextPath)
+    void controller.run('Staging', async () => {
+      await kraft.stage([change.path])
+      if (!movesOn) return
+      if (next) openDiff(next, false)
+      else closeDiff()
+    })
+  }
   const unstage = (changes: FileChange[]) => void controller.run('Unstaging', () => kraft.unstage(paths(changes)))
   const discard = (changes: FileChange[]) =>
     controller.ask({
@@ -171,7 +190,7 @@ export function WorkingTreePanel({ controller }: { controller: RepositoryControl
           onSelectMore={(change, mode) => selectMore(change, false, shownUnstaged, mode)}
           actions={[
             { label: 'Discard', title: 'Discard changes', danger: true, onClick: (change) => discard([change]) },
-            { label: 'Stage', title: 'Stage file', onClick: (change) => stage([change]) }
+            { label: 'Stage', title: 'Stage file', onClick: stageAndMoveOn }
           ]}
         />
       </div>

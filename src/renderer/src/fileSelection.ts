@@ -43,6 +43,18 @@ export function selectionAfterDiffClosed(selection: FileSelection | null): FileS
   return selection && selection.paths.length > 1 ? selection : null
 }
 
+/** Staging moves on to another file unless the user is busy with a different one, which they keep. */
+export function movesOnWhenStaged(selection: FileSelection | null, path: string): boolean {
+  return selection === null || (!selection.staged && selection.paths.length === 1 && selection.paths[0] === path)
+}
+
+/** The file to show once `path` has left the list: the one after it, or before it when it was the last. */
+export function pathAfterLeavingList(listPaths: readonly string[], path: string): string | null {
+  const index = listPaths.indexOf(path)
+  if (index === -1) return null
+  return listPaths[index + 1] ?? listPaths[index - 1] ?? null
+}
+
 /** The selected files still in the list, in list order; files staged or discarded since drop out. */
 export function selectedPaths(selection: FileSelection | null, staged: boolean, listPaths: readonly string[]): string[] {
   if (selection?.staged !== staged) return []
