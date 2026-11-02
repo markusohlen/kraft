@@ -42,7 +42,7 @@ Kraft **updates itself** on Windows and as an AppImage on Linux: it checks for a
 - **Branches**: checkout (remote branches are fetched and fast-forwarded first), create, delete, merge, rebase and cherry-pick from the right-click menus.
 - **Amend**: tick *Amend previous commit* in the commit box to add the staged changes to the last commit or reword its message.
 - **Force push**: after amending, rebasing or squashing pushed commits, **Push** offers to force push, as does the branch's right-click menu. Kraft refuses when that would remove commits you have never had locally.
-- **Auto-stash**: when a checkout, merge, pull or cherry-pick needs a clean working tree, Kraft stashes your changes and pops them back afterwards.
+- **Auto-stash**: when a checkout, merge, pull or cherry-pick needs a clean working tree, Kraft stashes your changes and pops them back afterwards. A stash that would restore no files is not kept.
 - **Pull requests**: right-click a branch and choose **Create pull request**. Kraft pushes it if needed and opens the pull request page.
 - **Gitflow**: initialise it from the sidebar, then start and finish features, releases and hotfixes.
 
