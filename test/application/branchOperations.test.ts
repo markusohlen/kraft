@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { checkoutBranch, checkoutRemoteBranch, mergeIntoCurrent } from '../../src/application/branchOperations'
+import { checkoutBranch, checkoutRemoteBranch, createAndCheckoutBranch, mergeIntoCurrent } from '../../src/application/branchOperations'
 import { hasUncommittedChanges } from '../../src/domain/entities'
 import { createTestRepository, type TestRepository } from './gitTestRepository'
 
@@ -72,6 +72,33 @@ describe('branch operations with auto-stash', () => {
 
     expect(result.stashMessage).toBeNull()
     expect((await test.repository.stashes()).map((stash) => stash.message)).toEqual([expect.stringContaining('an older stash of the user')])
+  })
+
+  it('keeps staged and unstaged changes in place when a branch is created at the checked-out commit', async () => {
+    await test.write('readme.txt', 'staged\n')
+    await test.git('add', 'readme.txt')
+    await test.write('new-file.txt', 'untracked\n')
+
+    const result = await createAndCheckoutBranch(test.repository, 'feature/x', 'main')
+
+    expect(result.stashMessage).toBeNull()
+    expect(await test.repository.currentBranch()).toBe('feature/x')
+    expect(await test.repository.stashes()).toHaveLength(0)
+    const status = await test.repository.status()
+    expect(status.staged.map((change) => change.path)).toEqual(['readme.txt'])
+    expect(status.unstaged.map((change) => change.path)).toContain('new-file.txt')
+  })
+
+  it('still stashes when a branch is created at another commit', async () => {
+    await test.git('checkout', '-q', 'other')
+    await test.commitFile('other.txt', 'from other\n', 'Work on other')
+    await test.git('checkout', '-q', 'main')
+    await test.write('readme.txt', 'edited\n')
+
+    const result = await createAndCheckoutBranch(test.repository, 'feature/y', 'other')
+
+    expect(result.stashMessage).toBe('Auto stash before checking out "feature/y"')
+    expect(await test.repository.stashes()).toHaveLength(1)
   })
 
   it('does nothing when the branch is already checked out', async () => {
