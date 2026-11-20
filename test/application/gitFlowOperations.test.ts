@@ -63,12 +63,26 @@ describe('git-flow operations', () => {
     expect(await test.git('rev-parse', 'HEAD')).toBe(await test.git('rev-parse', 'main'))
   })
 
-  it('auto-stashes uncommitted changes when starting a branch', async () => {
-    await test.write('readme.txt', 'dirty\n')
+  it('keeps uncommitted changes in place when starting a branch at the checked-out commit', async () => {
+    await test.git('checkout', '-q', 'develop')
+    await test.write('readme.txt', 'staged\n')
+    await test.git('add', 'readme.txt')
 
     const result = await startGitFlowBranch(test.repository, 'feature', 'dirty')
 
-    expect(result.stashMessage).toBe('Auto stash before checking out "feature/dirty"')
+    expect(result.stashMessage).toBeNull()
+    expect(await test.repository.stashes()).toHaveLength(0)
+    expect((await test.repository.status()).staged.map((change) => change.path)).toEqual(['readme.txt'])
+  })
+
+  it('auto-stashes uncommitted changes when starting a branch at another commit', async () => {
+    await test.git('checkout', '-q', 'develop')
+    await test.commitFile('develop.txt', 'x\n', 'Develop work')
+    await test.write('readme.txt', 'dirty\n')
+
+    const result = await startGitFlowBranch(test.repository, 'hotfix', '1.0.1')
+
+    expect(result.stashMessage).toBe('Auto stash before checking out "hotfix/1.0.1"')
     expect(await test.repository.stashes()).toHaveLength(1)
   })
 

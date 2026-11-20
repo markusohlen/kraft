@@ -27,6 +27,33 @@ export async function withAutoStash(
 }
 
 /**
+ * Creates `branchName` at `startPoint` and checks it out. A branch made at the commit that is checked out
+ * moves no files, so staged and unstaged changes simply follow along and nothing is stashed; any other
+ * start point goes through an auto-stash like a checkout does.
+ */
+export async function createBranchAt(
+  repository: GitRepository,
+  branchName: string,
+  startPoint: string
+): Promise<AutoStashResult> {
+  const create = async () => {
+    await repository.createBranch(branchName, startPoint)
+    await repository.checkout(branchName)
+  }
+  if (await isCheckedOutCommit(repository, startPoint)) {
+    await create()
+    return { stashMessage: null }
+  }
+  return withAutoStash(repository, autoStashMessages.checkout(branchName), 'keep', create)
+}
+
+async function isCheckedOutCommit(repository: GitRepository, ref: string): Promise<boolean> {
+  const head = await repository.headCommit()
+  if (!head) return false
+  return (await repository.isAncestor(ref, head)) && (await repository.isAncestor(head, ref))
+}
+
+/**
  * A staged edit that was undone in the working tree counts as uncommitted, but popping its stash would
  * restore no file, so such a stash is not kept. Returns whether a stash was kept.
  */

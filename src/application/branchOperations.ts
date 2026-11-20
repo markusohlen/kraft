@@ -1,6 +1,6 @@
 import { hasUncommittedChanges } from '../domain/entities'
 import { splitRemoteBranch } from '../domain/remoteBranch'
-import { autoStashMessages, withAutoStash, type AutoStashResult } from './autoStash'
+import { autoStashMessages, createBranchAt, withAutoStash, type AutoStashResult } from './autoStash'
 import type { GitRepository } from './ports'
 
 export async function checkoutBranch(repository: GitRepository, branch: string): Promise<AutoStashResult> {
@@ -65,23 +65,7 @@ export async function createAndCheckoutBranch(
   const branchName = name.trim()
   if (!branchName) throw new Error('A branch name is required')
   if (await repository.branchExists(branchName)) throw new Error(`Branch "${branchName}" already exists`)
-  const create = async () => {
-    await repository.createBranch(branchName, startPoint)
-    await repository.checkout(branchName)
-  }
-  // A branch made at the commit that is checked out moves no files, so the staged and unstaged changes
-  // simply follow along and there is nothing to stash.
-  if (await isCheckedOutCommit(repository, startPoint)) {
-    await create()
-    return { stashMessage: null }
-  }
-  return withAutoStash(repository, autoStashMessages.checkout(branchName), 'keep', create)
-}
-
-async function isCheckedOutCommit(repository: GitRepository, ref: string): Promise<boolean> {
-  const head = await repository.headCommit()
-  if (!head) return false
-  return (await repository.isAncestor(ref, head)) && (await repository.isAncestor(head, ref))
+  return createBranchAt(repository, branchName, startPoint)
 }
 
 export async function deleteBranch(repository: GitRepository, branch: string, force: boolean): Promise<void> {

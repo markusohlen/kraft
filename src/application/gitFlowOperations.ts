@@ -10,7 +10,7 @@ import {
   type GitFlowBranchType,
   type GitFlowConfig
 } from '../domain/gitFlow'
-import { autoStashMessages, withAutoStash, type AutoStashResult } from './autoStash'
+import { autoStashMessages, createBranchAt, withAutoStash, type AutoStashResult } from './autoStash'
 import type { GitRepository } from './ports'
 
 export interface FinishGitFlowOptions {
@@ -72,10 +72,7 @@ export async function startGitFlowBranch(
   if (!(await repository.branchExists(base))) throw new Error(`Branch "${base}" is required to start a ${type}`)
   if (await repository.branchExists(branchName)) throw new Error(`Branch "${branchName}" already exists`)
 
-  return withAutoStash(repository, autoStashMessages.checkout(branchName), 'keep', async () => {
-    await repository.createBranch(branchName, base)
-    await repository.checkout(branchName)
-  })
+  return createBranchAt(repository, branchName, base)
 }
 
 /**
